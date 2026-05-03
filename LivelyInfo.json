@@ -1,11 +1,12 @@
 {
-    "Type": 1,
-    "FileName": "index.html",
-    "Arguments": "--system-information",
-    "Author": "boss7155",
-    "Name": "System Stats + Weather",
-    "Description": "System monitoring wallpaper with weather and clock",
-    "Version": "1.0.0",
-    "License": "MIT",
-    "Website": "https://github.com/boss7155/system-stats-weather-wallpaper"
+  "AppVersion": "1.1.7.0",
+  "Title": "System Stats + Weather",
+  "Desc": "System monitoring wallpaper with weather and clock.",
+  "Author": "boss7155",
+  "License": "MIT",
+  "Contact": "https://github.com/boss7155/system-stats-weather-wallpaper",
+  "Type": 1,
+  "FileName": "index.html",
+  "Arguments": "--system-information",
+  "IsAbsolutePath": false
 }
