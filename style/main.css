@@ -73,13 +73,13 @@ canvas {
 }
 
 .chart-gpu {
-        left: 15%;
-        top: 70%;
+        left: 63%;
+        top: 10%;
 }
 
 .chart-ram {
-        left: 63%;
-        top: 10%;
+        left: 15%;
+        top: 70%;
 }
 
 .chart-net {
