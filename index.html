@@ -46,6 +46,21 @@
                         <canvas id="netChart"></canvas>
                 </div>
 
+                <!-- Music Now-Playing Widget — between RAM and Network -->
+                <div class="music-widget" id="musicWidget">
+                        <div class="music-art-wrap">
+                                <img id="albumArt" src="" alt="" class="music-art">
+                                <div class="music-art-placeholder" id="musicPlaceholder">
+                                        <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.2)"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                                </div>
+                        </div>
+                        <div class="music-info">
+                                <div class="music-title" id="musicTitle">Нет воспроизведения</div>
+                                <div class="music-artist" id="musicArtist"></div>
+                        </div>
+                        <canvas id="audioVisualizer" class="music-visualizer" width="200" height="40"></canvas>
+                </div>
+
                 <!-- LOCAL JS FILES — NOT CDN! Lively blocks CDN -->
                 <script src="js/moment.min.js"></script>
                 <script src="js/chart.js"></script>

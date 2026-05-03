@@ -678,3 +678,121 @@ function renderMistIcon() {
 
 fetchWeather();
 setInterval(fetchWeather, CONFIG.weatherRefreshInterval);
+
+
+// =====================================================
+// MUSIC NOW-PLAYING — Lively Wallpaper callback
+// =====================================================
+
+var vizCanvas = document.getElementById('audioVisualizer');
+var vizCtx = vizCanvas ? vizCanvas.getContext('2d') : null;
+var albumArtEl = document.getElementById('albumArt');
+var musicTitleEl = document.getElementById('musicTitle');
+var musicArtistEl = document.getElementById('musicArtist');
+var musicWidgetEl = document.getElementById('musicWidget');
+var placeholderEl = document.getElementById('musicPlaceholder');
+
+// Called by Lively when --system-nowplaying is enabled
+function livelyCurrentTrack(data) {
+    var obj = null;
+    try { obj = JSON.parse(data); } catch (e) {}
+
+    if (obj == null) {
+        // No media playing
+        musicTitleEl.textContent = 'Нет воспроизведения';
+        musicArtistEl.textContent = '';
+        albumArtEl.classList.remove('visible');
+        placeholderEl.style.display = 'flex';
+        if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
+    } else {
+        // Track is playing
+        musicTitleEl.textContent = obj.Title || 'Неизвестно';
+        musicArtistEl.textContent = obj.Artist || '';
+
+        if (obj.Thumbnail != null) {
+            albumArtEl.src = 'data:image/png;base64,' + obj.Thumbnail;
+            albumArtEl.classList.add('visible');
+            placeholderEl.style.display = 'none';
+        } else {
+            albumArtEl.classList.remove('visible');
+            placeholderEl.style.display = 'flex';
+        }
+        if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
+    }
+}
+
+// Called by Lively when --audio is enabled — 128-length audio array
+function livelyAudioListener(audioArray) {
+    if (!vizCtx) return;
+
+    var width = vizCanvas.width;
+    var height = vizCanvas.height;
+
+    vizCtx.clearRect(0, 0, width, height);
+
+    // Find max value for normalization
+    var maxVal = 1;
+    for (var k = 0; k < audioArray.length; k++) {
+        if (audioArray[k] > maxVal) maxVal = audioArray[k];
+    }
+
+    var barCount = 32;
+    var step = Math.floor(audioArray.length / barCount);
+    var barWidth = (width / barCount) - 1.5;
+    var x = 0;
+
+    for (var i = 0; i < barCount; i++) {
+        // Average a few samples per bar for smoother look
+        var sum = 0;
+        for (var j = 0; j < step; j++) {
+            sum += audioArray[i * step + j] || 0;
+        }
+        var val = sum / step;
+        var barHeight = (val / maxVal) * height * 0.9;
+        barHeight = Math.max(2, barHeight);
+
+        var y = height - barHeight;
+
+        // Gradient per bar — cyan to purple
+        var ratio = i / barCount;
+        var r = Math.round(0 + ratio * 180);
+        var g = Math.round(200 - ratio * 100);
+        var b = Math.round(255);
+        vizCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.7)';
+
+        vizCtx.beginPath();
+        vizCtx.roundRect(x, y, barWidth, barHeight, 2);
+        vizCtx.fill();
+
+        x += barWidth + 1.5;
+    }
+}
+
+// Fallback: draw idle visualizer bars when no audio
+function drawIdleViz() {
+    if (!vizCtx) return;
+    var width = vizCanvas.width;
+    var height = vizCanvas.height;
+    vizCtx.clearRect(0, 0, width, height);
+
+    var barCount = 32;
+    var barWidth = (width / barCount) - 1.5;
+    var x = 0;
+
+    for (var i = 0; i < barCount; i++) {
+        var barHeight = 2 + Math.random() * 3;
+        var y = height - barHeight;
+        var ratio = i / barCount;
+        var r = Math.round(0 + ratio * 180);
+        var g = Math.round(200 - ratio * 100);
+        var b = 255;
+        vizCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.2)';
+        vizCtx.beginPath();
+        vizCtx.roundRect(x, y, barWidth, barHeight, 2);
+        vizCtx.fill();
+        x += barWidth + 1.5;
+    }
+}
+
+// Show idle visualizer initially
+drawIdleViz();

@@ -311,3 +311,94 @@ canvas {
 .weather-icon-partly-cloudy .cloud-main { width:54px; height:20px; top:40px; left:12px; background:linear-gradient(135deg,rgba(200,210,230,0.9),rgba(160,175,200,0.8)); border-radius:50px; box-shadow:0 4px 16px rgba(0,0,0,0.2); animation:cloudFloat 6s ease-in-out infinite; z-index:2; }
 .weather-icon-partly-cloudy .cloud-main::before { content:''; position:absolute; background:inherit; border-radius:50%; width:26px; height:26px; top:-16px; left:7px; }
 .weather-icon-partly-cloudy .cloud-main::after { content:''; position:absolute; background:inherit; border-radius:50%; width:20px; height:20px; top:-9px; left:26px; }
+
+/* ===== MUSIC NOW-PLAYING WIDGET ===== */
+.music-widget {
+        z-index: 100;
+        position: absolute;
+        left: 50%;
+        top: 78%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: rgba(0,0,0,0.35);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 14px;
+        padding: 10px 18px;
+        backdrop-filter: blur(6px);
+        min-width: 280px;
+        opacity: 0.8;
+        transition: opacity 0.5s ease;
+}
+.music-widget:hover {
+        opacity: 1;
+}
+.music-widget.has-track {
+        opacity: 1;
+}
+
+.music-art-wrap {
+        width: 44px;
+        height: 44px;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+        position: relative;
+        background: rgba(255,255,255,0.05);
+}
+.music-art {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+}
+.music-art.visible {
+        display: block;
+}
+.music-art-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+}
+.music-art-placeholder svg {
+        width: 24px;
+        height: 24px;
+}
+.music-art.visible + .music-art-placeholder {
+        display: none;
+}
+
+.music-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1;
+}
+.music-title {
+        font-size: 13px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.85);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+}
+.music-artist {
+        font-size: 11px;
+        color: rgba(255,255,255,0.4);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+}
+
+.music-visualizer {
+        width: 200px;
+        height: 40px;
+        flex-shrink: 0;
+        opacity: 0.7;
+}
