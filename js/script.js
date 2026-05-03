@@ -511,16 +511,27 @@ function renderWeatherIcon(type) {
 
 function renderSunnyIcon() {
     var rays = '';
+    // 12 rays — alternating long/short for professional look
     for (var i = 0; i < 12; i++) {
-        rays += '<div class="sun-ray" style="transform:rotate(' + (i * 30) + 'deg) translateY(-42px)"></div>';
+        var isLong = (i % 2 === 0);
+        var cls = isLong ? 'sun-ray' : 'sun-ray';
+        var translateY = isLong ? -38 : -36;
+        rays += '<div class="' + cls + '" style="transform:rotate(' + (i * 30) + 'deg) translateY(' + translateY + 'px)"></div>';
     }
     return '<div class="weather-icon-sunny"><div class="sun-core"></div>' + rays + '</div>';
 }
 
 function renderNightIcon() {
-    return '<div class="weather-icon-sunny" style="filter:hue-rotate(200deg) brightness(0.6)">' +
-        '<div class="sun-core" style="background:radial-gradient(circle,#c8d8f0,#8a9cc0);box-shadow:0 0 20px rgba(150,170,220,0.3)"></div>' +
-        '</div>';
+    // Moon — crescent with craters
+    return '<div class="weather-icon-night">' +
+        '<div class="moon">' +
+            '<div class="moon-shadow"></div>' +
+            '<div class="moon-crater crater-1"></div>' +
+            '<div class="moon-crater crater-2"></div>' +
+            '<div class="moon-crater crater-3"></div>' +
+        '</div>' +
+        '<div class="moon-glow"></div>' +
+    '</div>';
 }
 
 function renderCloudyIcon() {
