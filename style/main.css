@@ -30,26 +30,26 @@ canvas {
         padding: 4px;
 }
 
-/* Original layout: left col at 10%, right col at 70% */
+/* Centered symmetric layout — closer to center */
 /* Left column — CPU top, GPU bottom */
 .chart-cpu {
-        left: 10%;
+        left: 15%;
         top: 15%;
 }
 
 .chart-gpu {
-        left: 10%;
+        left: 15%;
         top: 52.5%;
 }
 
-/* Right column — RAM top, Network bottom (symmetric with left) */
+/* Right column — RAM top, Network bottom */
 .chart-ram {
-        left: 70%;
+        left: 63%;
         top: 15%;
 }
 
 .chart-net {
-        left: 70%;
+        left: 63%;
         top: 52.5%;
 }
 
@@ -98,47 +98,59 @@ canvas {
 .weather-desc { font-size: 14px; color: rgba(255,255,255,0.5); }
 .weather-city { font-size: 12px; color: rgba(255,255,255,0.3); margin-top: 2px; }
 
-/* SUN — professional SVG-style animated icon */
+/* SUN — professional animated icon, perfectly centered */
 .weather-icon-sunny {
         position: relative;
         width: 100%;
         height: 100%;
-        animation: sunSlowRotate 30s linear infinite;
 }
 .weather-icon-sunny .sun-core {
         position: absolute;
         top: 50%; left: 50%;
-        width: 32px; height: 32px;
-        background: radial-gradient(circle at 35% 35%, #FFF176, #FFD54F 30%, #FFB300 70%, #FF8F00);
+        width: 30px; height: 30px;
+        background: radial-gradient(circle at 38% 38%, #FFF9C4, #FFF176 20%, #FFD54F 45%, #FFB300 75%, #FF8F00);
         border-radius: 50%;
         transform: translate(-50%, -50%);
         box-shadow:
-                0 0 20px 4px rgba(255, 213, 79, 0.5),
-                0 0 60px 10px rgba(255, 143, 0, 0.15),
-                inset 0 -4px 8px rgba(255,111,0,0.3);
+                0 0 18px 3px rgba(255, 213, 79, 0.45),
+                0 0 50px 8px rgba(255, 143, 0, 0.12),
+                inset 0 -3px 6px rgba(255,111,0,0.25);
         animation: sunPulse 4s ease-in-out infinite;
+        z-index: 2;
 }
+/* Rays — positioned from center, rotating around center */
 .weather-icon-sunny .sun-ray {
         position: absolute;
-        top: 50%; left: 50%;
-        width: 3px; height: 16px;
-        background: linear-gradient(to top, rgba(255,213,79,0.9), rgba(255,213,79,0.1));
-        border-radius: 2px;
-        transform-origin: center 38px;
-        animation: rayPulse 4s ease-in-out infinite;
+        top: 50%;
+        left: 50%;
+        width: 3px;
+        height: 14px;
+        margin-left: -1.5px;
+        margin-top: -34px;
+        background: linear-gradient(to bottom, rgba(255,224,130,0.95), rgba(255,183,77,0.3), transparent);
+        border-radius: 1.5px;
+        transform-origin: 1.5px 34px;
+        z-index: 1;
 }
-.weather-icon-sunny .sun-ray:nth-child(odd) {
-        height: 12px;
-        width: 2.5px;
-        background: linear-gradient(to top, rgba(255,183,77,0.7), transparent);
+.weather-icon-sunny .sun-ray-short {
+        height: 10px;
+        width: 2px;
+        margin-left: -1px;
+        margin-top: -30px;
+        background: linear-gradient(to bottom, rgba(255,224,130,0.7), rgba(255,183,77,0.2), transparent);
+        border-radius: 1px;
+        transform-origin: 1px 30px;
+}
+/* Slow rotation of rays only */
+.weather-icon-sunny .sun-rays-wrap {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        animation: sunSlowRotate 40s linear infinite;
 }
 @keyframes sunPulse {
-        0%, 100% { box-shadow: 0 0 20px 4px rgba(255,213,79,0.5), 0 0 60px 10px rgba(255,143,0,0.15), inset 0 -4px 8px rgba(255,111,0,0.3); }
-        50% { box-shadow: 0 0 28px 6px rgba(255,213,79,0.6), 0 0 80px 15px rgba(255,143,0,0.2), inset 0 -4px 8px rgba(255,111,0,0.3); }
-}
-@keyframes rayPulse {
-        0%, 100% { opacity: 0.8; }
-        50% { opacity: 1; }
+        0%, 100% { box-shadow: 0 0 18px 3px rgba(255,213,79,0.45), 0 0 50px 8px rgba(255,143,0,0.12), inset 0 -3px 6px rgba(255,111,0,0.25); }
+        50% { box-shadow: 0 0 24px 5px rgba(255,213,79,0.55), 0 0 70px 12px rgba(255,143,0,0.18), inset 0 -3px 6px rgba(255,111,0,0.25); }
 }
 @keyframes sunSlowRotate {
         from { transform: rotate(0deg); }

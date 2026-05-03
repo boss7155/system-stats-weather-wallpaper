@@ -511,14 +511,17 @@ function renderWeatherIcon(type) {
 
 function renderSunnyIcon() {
     var rays = '';
-    // 12 rays — alternating long/short for professional look
+    // 12 rays — alternating long/short, inside rotating wrapper
+    // Core stays still, rays rotate slowly
     for (var i = 0; i < 12; i++) {
         var isLong = (i % 2 === 0);
-        var cls = isLong ? 'sun-ray' : 'sun-ray';
-        var translateY = isLong ? -38 : -36;
-        rays += '<div class="' + cls + '" style="transform:rotate(' + (i * 30) + 'deg) translateY(' + translateY + 'px)"></div>';
+        var cls = isLong ? 'sun-ray' : 'sun-ray sun-ray-short';
+        rays += '<div class="' + cls + '" style="transform:rotate(' + (i * 30) + 'deg)"></div>';
     }
-    return '<div class="weather-icon-sunny"><div class="sun-core"></div>' + rays + '</div>';
+    return '<div class="weather-icon-sunny">' +
+        '<div class="sun-rays-wrap">' + rays + '</div>' +
+        '<div class="sun-core"></div>' +
+    '</div>';
 }
 
 function renderNightIcon() {
