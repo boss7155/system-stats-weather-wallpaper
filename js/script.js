@@ -471,6 +471,7 @@ function fetchWeather() {
 
             var weatherType = mapWeatherIcon(iconCode, data.weather[0].id);
             renderWeatherIcon(weatherType);
+            changeBackground(weatherType);
         })
         .catch(function (err) {
             document.getElementById('weatherDesc').textContent = 'Нет связи';
@@ -486,6 +487,61 @@ function mapWeatherIcon(iconCode, id) {
     if (id === 800) return iconCode.endsWith('n') ? 'clear-night' : 'clear';
     if (id > 800) { if (id === 801 || id === 802) return 'partly-cloudy'; return 'cloudy'; }
     return 'clear';
+}
+
+
+// =====================================================
+// DYNAMIC WEATHER BACKGROUND
+// =====================================================
+
+var currentBgType = '';
+
+function changeBackground(weatherType) {
+    if (weatherType === currentBgType) return; // no change needed
+    currentBgType = weatherType;
+
+    var bgMap = {
+        'clear': 'textures/sunny.jpg',
+        'clear-night': 'textures/night.jpg',
+        'partly-cloudy': 'textures/sunny.jpg',   // use sunny bg, dimmed
+        'cloudy': 'textures/cloudy.jpg',
+        'rain': 'textures/rain.jpg',
+        'snow': 'textures/snow.jpg',
+        'storm': 'textures/storm.jpg',
+        'mist': 'textures/cloudy.jpg',            // use cloudy for mist
+    };
+
+    var bgUrl = bgMap[weatherType] || bgMap['clear'];
+
+    // Fade transition: use two bg layers
+    var bgCurrent = document.getElementById('bgCurrent');
+    var bgNext = document.getElementById('bgNext');
+
+    // Preload image, then crossfade
+    var img = new Image();
+    img.onload = function () {
+        bgNext.style.backgroundImage = 'url(' + bgUrl + ')';
+        bgNext.style.opacity = '1';
+
+        // After transition, move next to current
+        setTimeout(function () {
+            bgCurrent.style.backgroundImage = 'url(' + bgUrl + ')';
+            bgNext.style.opacity = '0';
+        }, 1500);
+    };
+    img.src = bgUrl;
+
+    // Dim overlay for partly-cloudy at night
+    var overlay = document.getElementById('bgOverlay');
+    if (weatherType === 'partly-cloudy') {
+        overlay.style.background = 'rgba(0,0,0,0.2)';
+    } else if (weatherType === 'clear-night') {
+        overlay.style.background = 'rgba(0,0,20,0.3)';
+    } else if (weatherType === 'storm') {
+        overlay.style.background = 'rgba(0,0,0,0.35)';
+    } else {
+        overlay.style.background = 'rgba(0,0,0,0.15)';
+    }
 }
 
 
