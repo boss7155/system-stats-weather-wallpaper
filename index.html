@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>System Stats + Weather Wallpaper</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+    <!-- ===== ALL CSS INLINE ===== -->
+    <style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#fff;font-family:'Segoe UI','Roboto','Helvetica Neue',Arial,sans-serif;font-size:13px;line-height:24px;overscroll-behavior:none;overflow:hidden}
+#body{overflow:hidden;height:100vh;width:100vw;position:relative}
+canvas{display:block}
+
+/* ANIMATED BACKGROUND */
+.bg{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#0a0a1a 0%,#0d1528 25%,#0a1628 50%,#101030 75%,#0a0a1a 100%);z-index:0}
+.bg-particles{position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden}
+.bg-particles::before,.bg-particles::after{content:'';position:absolute;border-radius:50%;opacity:0.08;animation:floatBlob 20s ease-in-out infinite}
+.bg-particles::before{width:600px;height:600px;background:radial-gradient(circle,#3a6fb5,transparent);top:-200px;right:-100px;animation-delay:0s}
+.bg-particles::after{width:500px;height:500px;background:radial-gradient(circle,#6a3ab5,transparent);bottom:-200px;left:-100px;animation-delay:-10s}
+@keyframes floatBlob{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(50px,-30px) scale(1.1)}66%{transform:translate(-30px,50px) scale(0.9)}}
+
+/* CENTER WIDGET */
+.center-widget{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:10;text-align:center;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:30px}
+
+/* CLOCK */
+.clock-container{text-shadow:0 0 40px rgba(100,150,255,0.3)}
+.clock-time{font-size:96px;font-weight:200;letter-spacing:8px;color:rgba(255,255,255,0.95);line-height:1}
+.clock-date{font-size:20px;font-weight:300;color:rgba(180,200,230,0.8);margin-top:8px;letter-spacing:4px;text-transform:uppercase}
+
+/* WEATHER */
+.weather-container{display:flex;align-items:center;gap:24px;background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:24px;padding:20px 36px}
+.weather-icon-wrap{width:120px;height:120px;position:relative;flex-shrink:0}
+.weather-info{display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.weather-temp{font-size:48px;font-weight:300;color:rgba(255,255,255,0.95);line-height:1}
+.weather-desc{font-size:16px;font-weight:400;color:rgba(180,200,230,0.7);text-transform:capitalize}
+.weather-city{font-size:14px;font-weight:300;color:rgba(150,170,200,0.5);margin-top:2px}
+
+/* SUN ICON */
+.weather-icon-sunny{position:relative;width:100%;height:100%}
+.weather-icon-sunny .sun-core{position:absolute;top:50%;left:50%;width:50px;height:50px;background:radial-gradient(circle,#FFD93D,#FF8C00);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 40px rgba(255,217,61,0.6),0 0 80px rgba(255,140,0,0.3);animation:sunPulse 3s ease-in-out infinite}
+.weather-icon-sunny .sun-ray{position:absolute;top:50%;left:50%;width:4px;height:20px;background:linear-gradient(to top,rgba(255,217,61,0.8),transparent);border-radius:2px;transform-origin:center 55px}
+@keyframes sunPulse{0%,100%{box-shadow:0 0 40px rgba(255,217,61,0.6),0 0 80px rgba(255,140,0,0.3)}50%{box-shadow:0 0 60px rgba(255,217,61,0.8),0 0 120px rgba(255,140,0,0.4)}}
+
+/* CLOUD */
+.weather-icon-cloudy{position:relative;width:100%;height:100%}
+.cloud{position:absolute;background:linear-gradient(135deg,rgba(200,210,230,0.9),rgba(160,175,200,0.8));border-radius:50px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:50%}
+.weather-icon-cloudy .cloud-main{width:80px;height:30px;top:55px;left:20px;animation:cloudFloat 6s ease-in-out infinite}
+.weather-icon-cloudy .cloud-main::before{width:40px;height:40px;top:-25px;left:12px}
+.weather-icon-cloudy .cloud-main::after{width:30px;height:30px;top:-15px;left:42px}
+.weather-icon-cloudy .cloud-back{width:60px;height:24px;top:40px;left:40px;opacity:0.6;animation:cloudFloat 6s ease-in-out infinite;animation-delay:-2s}
+.weather-icon-cloudy .cloud-back::before{width:30px;height:30px;top:-18px;left:8px}
+.weather-icon-cloudy .cloud-back::after{width:22px;height:22px;top:-10px;left:30px}
+@keyframes cloudFloat{0%,100%{transform:translateX(0)}50%{transform:translateX(8px)}}
+
+/* RAIN */
+.weather-icon-rainy{position:relative;width:100%;height:100%}
+.weather-icon-rainy .cloud-main{width:80px;height:30px;top:30px;left:20px;background:linear-gradient(135deg,rgba(140,155,180,0.9),rgba(110,125,150,0.8));border-radius:50px;box-shadow:0 8px 32px rgba(0,0,0,0.2);animation:cloudFloat 6s ease-in-out infinite}
+.weather-icon-rainy .cloud-main::before{content:'';position:absolute;background:linear-gradient(135deg,rgba(140,155,180,0.9),rgba(110,125,150,0.8));border-radius:50%;width:40px;height:40px;top:-25px;left:12px}
+.weather-icon-rainy .cloud-main::after{content:'';position:absolute;background:linear-gradient(135deg,rgba(140,155,180,0.9),rgba(110,125,150,0.8));border-radius:50%;width:30px;height:30px;top:-15px;left:42px}
+.raindrop{position:absolute;width:2px;background:linear-gradient(to bottom,transparent,rgba(100,160,255,0.8));border-radius:0 0 2px 2px;animation:rainFall linear infinite}
+@keyframes rainFall{0%{transform:translateY(0);opacity:1}100%{transform:translateY(70px);opacity:0}}
+
+/* SNOW */
+.weather-icon-snowy{position:relative;width:100%;height:100%}
+.weather-icon-snowy .cloud-main{width:80px;height:30px;top:30px;left:20px;background:linear-gradient(135deg,rgba(200,210,230,0.9),rgba(160,175,200,0.8));border-radius:50px;box-shadow:0 8px 32px rgba(0,0,0,0.2);animation:cloudFloat 6s ease-in-out infinite}
+.weather-icon-snowy .cloud-main::before{content:'';position:absolute;background:inherit;border-radius:50%;width:40px;height:40px;top:-25px;left:12px}
+.weather-icon-snowy .cloud-main::after{content:'';position:absolute;background:inherit;border-radius:50%;width:30px;height:30px;top:-15px;left:42px}
+.snowflake{position:absolute;color:rgba(220,230,255,0.9);font-size:12px;animation:snowFall linear infinite}
+@keyframes snowFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(70px) rotate(360deg);opacity:0}}
+
+/* THUNDERSTORM */
+.weather-icon-stormy{position:relative;width:100%;height:100%}
+.weather-icon-stormy .cloud-main{width:85px;height:32px;top:25px;left:18px;background:linear-gradient(135deg,rgba(80,90,110,0.95),rgba(50,55,70,0.9));border-radius:50px;box-shadow:0 8px 32px rgba(0,0,0,0.3);animation:cloudFloat 4s ease-in-out infinite}
+.weather-icon-stormy .cloud-main::before{content:'';position:absolute;background:inherit;border-radius:50%;width:44px;height:44px;top:-28px;left:10px}
+.weather-icon-stormy .cloud-main::after{content:'';position:absolute;background:inherit;border-radius:50%;width:32px;height:32px;top:-16px;left:42px}
+.lightning-bolt{position:absolute;top:55px;left:50%;transform:translateX(-50%);width:0;height:0;animation:lightningFlash 3s ease-in-out infinite}
+.lightning-bolt svg{width:30px;height:50px}
+@keyframes lightningFlash{0%,89%,91%,93%,100%{opacity:0}90%,92%{opacity:1}}
+
+/* MIST */
+.weather-icon-misty{position:relative;width:100%;height:100%}
+.mist-line{position:absolute;height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,rgba(180,200,220,0.6),transparent);animation:mistDrift 8s ease-in-out infinite}
+@keyframes mistDrift{0%,100%{transform:translateX(0);opacity:0.5}50%{transform:translateX(15px);opacity:0.8}}
+
+/* PARTLY CLOUDY */
+.weather-icon-partly-cloudy{position:relative;width:100%;height:100%}
+.weather-icon-partly-cloudy .mini-sun{position:absolute;top:20px;right:15px;width:36px;height:36px;background:radial-gradient(circle,#FFD93D,#FF8C00);border-radius:50%;box-shadow:0 0 25px rgba(255,217,61,0.5);animation:sunPulse 3s ease-in-out infinite}
+.weather-icon-partly-cloudy .cloud-main{width:70px;height:26px;top:50px;left:15px;background:linear-gradient(135deg,rgba(200,210,230,0.9),rgba(160,175,200,0.8));border-radius:50px;box-shadow:0 8px 32px rgba(0,0,0,0.2);animation:cloudFloat 6s ease-in-out infinite;z-index:2}
+.weather-icon-partly-cloudy .cloud-main::before{content:'';position:absolute;background:inherit;border-radius:50%;width:35px;height:35px;top:-22px;left:10px}
+.weather-icon-partly-cloudy .cloud-main::after{content:'';position:absolute;background:inherit;border-radius:50%;width:26px;height:26px;top:-12px;left:36px}
+
+/* CHART CONTAINERS */
+.chart-container{position:fixed;z-index:100;width:18vw;height:18vh;min-width:220px;min-height:150px;background:rgba(255,255,255,0.03);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:12px}
+.chart-cpu{left:3%;top:8%}
+.chart-gpu{left:3%;bottom:8%}
+.chart-ram{right:3%;top:8%}
+.chart-net{right:3%;bottom:8%}
+.chart-container canvas{width:100%!important;height:100%!important}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.clock-time{font-size:72px}.weather-temp{font-size:36px}.weather-icon-wrap{width:90px;height:90px}.chart-container{width:22vw;height:16vh}}
+@media(max-width:800px){.clock-time{font-size:48px}.clock-date{font-size:14px}.weather-container{flex-direction:column;padding:16px 24px;gap:12px}.weather-info{align-items:center}.weather-temp{font-size:28px}.chart-container{width:40vw;height:14vh}.chart-cpu{left:2%;top:2%}.chart-gpu{left:2%;bottom:auto;top:18%}.chart-ram{right:2%;top:2%}.chart-net{right:2%;bottom:auto;top:18%}}
+    </style>
+</head>
+<body id="body">
+
+    <!-- Dark animated background -->
+    <div class="bg">
+        <div class="bg-particles" id="bgParticles"></div>
+    </div>
+
+    <!-- Center Weather & Time Widget -->
+    <div class="center-widget" id="centerWidget">
+        <!-- Clock -->
+        <div class="clock-container">
+            <div class="clock-time" id="clockTime">--:--</div>
+            <div class="clock-date" id="clockDate">--</div>
+        </div>
+        <!-- Weather -->
+        <div class="weather-container" id="weatherContainer">
+            <div class="weather-icon-wrap" id="weatherIconWrap"></div>
+            <div class="weather-info">
+                <div class="weather-temp" id="weatherTemp">--°</div>
+                <div class="weather-desc" id="weatherDesc">Загрузка...</div>
+                <div class="weather-city" id="weatherCity">--</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Stats Charts -->
+    <div class="chart-container chart-cpu"><canvas id="cpuChart"></canvas></div>
+    <div class="chart-container chart-gpu"><canvas id="gpuChart"></canvas></div>
+    <div class="chart-container chart-ram"><canvas id="ramChart"></canvas></div>
+    <div class="chart-container chart-net"><canvas id="netChart"></canvas></div>
+
+    <!-- Libraries from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.4/min/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0/dist/Chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@1.8.0/dist/chartjs-plugin-streaming.min.js"></script>
+
+    <!-- ===== ALL JS INLINE ===== -->
+    <script>
+// =====================================================
+// SYSTEM STATS + WEATHER WALLPAPER
+// =====================================================
+
+// ===== КОНФИГУРАЦИЯ — НАСТРОЙТЕ ПОД СЕБЯ =====
+var CONFIG = {
+    // OpenWeatherMap API ключ (бесплатный) — получите на https://openweathermap.org/api
+    weatherApiKey: 'YOUR_OPENWEATHERMAP_API_KEY',
+    // Ваш город (на английском для API)
+    weatherCity: 'Moscow',
+    // Код страны
+    weatherCountryCode: 'RU',
+    // Часовой пояс
+    timezone: 'Europe/Moscow',
+    // Язык погоды (ru / en)
+    weatherLang: 'ru',
+    // Интервал обновления погоды (мс) — 10 минут
+    weatherRefreshInterval: 10 * 60 * 1000,
+    // Единицы: 'metric' = Цельсий, 'imperial' = Фаренгейт
+    weatherUnits: 'metric',
+};
+
+// ===== CHART VARIABLES =====
+var cpuCounter = 0, gpuCounter = 0, netDownCounter = 0, netUpCounter = 0;
+var memTotal = 1, memFree = 0;
+var cpuName = "", gpuName = "", memoryName = "", netCardName = "";
+var isChartInit = false;
+var color = Chart.helpers.color;
+
+Chart.defaults.global.legend.display = false;
+Chart.defaults.global.responsive = true;
+Chart.defaults.global.elements.pointRadius = 0;
+Chart.defaults.global.tooltips.enabled = false;
+Chart.defaults.global.defaultFontColor = 'rgba(180,200,230,0.7)';
+Chart.defaults.global.defaultFontSize = 11;
+
+var cpuChartConfig = {
+    type:'line',
+    data:{datasets:[{label:'CPU',backgroundColor:color('rgb(100,180,255)').alpha(0.15).rgbString(),borderColor:'rgb(100,180,255)',borderWidth:1.5,fill:true,lineTension:0.3,pointRadius:0,data:[]}]},
+    options:{maintainAspectRatio:false,legend:{display:false},title:{display:true,text:'Processor',color:'rgba(180,200,230,0.7)',fontSize:12},scales:{xAxes:[{type:'realtime',realtime:{duration:20000,refresh:1000,delay:1000,onRefresh:onRefresh},ticks:{display:false},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}],yAxes:[{scaleLabel:{display:false},ticks:{beginAtZero:true,max:100,fontColor:'rgba(180,200,230,0.4)',fontSize:9},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}]}}
+};
+var gpuChartConfig = {
+    type:'line',
+    data:{datasets:[{label:'GPU',backgroundColor:color('rgb(180,100,255)').alpha(0.15).rgbString(),borderColor:'rgb(180,100,255)',borderWidth:1.5,fill:true,lineTension:0.3,pointRadius:0,data:[]}]},
+    options:{maintainAspectRatio:false,legend:{display:false},title:{display:true,text:'Graphics',color:'rgba(180,200,230,0.7)',fontSize:12},scales:{xAxes:[{type:'realtime',realtime:{duration:20000,refresh:1000,delay:1000,onRefresh:onRefresh},ticks:{display:false},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}],yAxes:[{scaleLabel:{display:false},ticks:{beginAtZero:true,max:100,fontColor:'rgba(180,200,230,0.4)',fontSize:9},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}]}}
+};
+var ramChartConfig = {
+    type:'line',
+    data:{datasets:[{label:'RAM',backgroundColor:color('rgb(100,255,180)').alpha(0.15).rgbString(),borderColor:'rgb(100,255,180)',borderWidth:1.5,fill:true,lineTension:0.3,pointRadius:0,data:[]}]},
+    options:{maintainAspectRatio:false,legend:{display:false},title:{display:true,text:'Memory',color:'rgba(180,200,230,0.7)',fontSize:12},scales:{xAxes:[{type:'realtime',realtime:{duration:20000,refresh:1000,delay:1000,onRefresh:onRefresh},ticks:{display:false},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}],yAxes:[{scaleLabel:{display:false},ticks:{beginAtZero:true,max:100,fontColor:'rgba(180,200,230,0.4)',fontSize:9},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}]}}
+};
+var netChartConfig = {
+    type:'line',
+    data:{datasets:[{label:'Net Down',backgroundColor:color('rgb(255,180,100)').alpha(0.15).rgbString(),borderColor:'rgb(255,180,100)',borderWidth:1.5,fill:true,lineTension:0.3,pointRadius:0,data:[]},{label:'Net Up',backgroundColor:color('rgb(255,100,130)').alpha(0.1).rgbString(),borderColor:'rgb(255,100,130)',borderWidth:1.5,fill:true,lineTension:0.3,pointRadius:0,data:[]}]},
+    options:{legend:{display:false},title:{display:true,text:'Network',color:'rgba(180,200,230,0.7)',fontSize:12},scales:{xAxes:[{type:'realtime',realtime:{duration:20000,refresh:1000,delay:1000,onRefresh:onRefresh},ticks:{display:false},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}],yAxes:[{scaleLabel:{display:false},ticks:{beginAtZero:true,suggestedMax:100,fontColor:'rgba(180,200,230,0.4)',fontSize:9},gridLines:{color:'rgba(255,255,255,0.04)',drawBorder:false}}]}}
+};
+
+function onRefresh(chart) {
+    var data = [];
+    switch(chart){case cpuChart:data[0]=cpuCounter;break;case gpuChart:data[0]=gpuCounter;break;case netChart:data[0]=netDownCounter;data[1]=netUpCounter;break;case ramChart:data[0]=(memTotal-memFree)*100/memTotal;break;}
+    var i=0;
+    chart.config.data.datasets.forEach(function(ds){ds.data.push({x:Date.now(),y:data[i]});i++;});
+}
+
+var cpuChart,gpuChart,netChart,ramChart;
+function initChart(){
+    cpuChartConfig.options.title.text=cpuName;gpuChartConfig.options.title.text=gpuName;netChartConfig.options.title.text=netCardName;ramChartConfig.options.title.text=memoryName;
+    cpuChart=new Chart(document.getElementById('cpuChart').getContext('2d'),cpuChartConfig);
+    gpuChart=new Chart(document.getElementById('gpuChart').getContext('2d'),gpuChartConfig);
+    netChart=new Chart(document.getElementById('netChart').getContext('2d'),netChartConfig);
+    ramChart=new Chart(document.getElementById('ramChart').getContext('2d'),ramChartConfig);
+}
+
+// Lively Wallpaper callback
+function livelySystemInformation(data){
+    var obj=JSON.parse(data);
+    cpuName=obj.NameCpu;gpuName=obj.NameGpu;netCardName=obj.NameNetCard;memoryName="Memory ("+obj.TotalRam/1024+" GB)";
+    cpuCounter=obj.CurrentCpu;gpuCounter=obj.CurrentGpu3D;netDownCounter=(obj.CurrentNetDown*8)/(1024*1024);netUpCounter=(obj.CurrentNetUp*8)/(1024*1024);memFree=obj.CurrentRamAvail;memTotal=obj.TotalRam;
+    if(!isChartInit){isChartInit=true;initChart();}
+}
+
+// ===== CLOCK =====
+function updateClock(){
+    var now=new Date();
+    var timeStr=now.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:CONFIG.timezone});
+    var dateStr=now.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',timeZone:CONFIG.timezone});
+    var el1=document.getElementById('clockTime');if(el1)el1.textContent=timeStr;
+    var el2=document.getElementById('clockDate');if(el2)el2.textContent=dateStr.charAt(0).toUpperCase()+dateStr.slice(1);
+}
+setInterval(updateClock,1000);updateClock();
+
+// ===== WEATHER =====
+var lastWeatherData=null;
+
+function fetchWeather(){
+    if(CONFIG.weatherApiKey==='YOUR_OPENWEATHERMAP_API_KEY'){
+        document.getElementById('weatherTemp').textContent='--°';
+        document.getElementById('weatherDesc').textContent='Настройте API ключ';
+        document.getElementById('weatherCity').textContent=CONFIG.weatherCity;
+        renderWeatherIcon('clear');return;
+    }
+    var url='https://api.openweathermap.org/data/2.5/weather?q='+encodeURIComponent(CONFIG.weatherCity+','+CONFIG.weatherCountryCode)+'&appid='+CONFIG.weatherApiKey+'&units='+CONFIG.weatherUnits+'&lang='+CONFIG.weatherLang;
+    fetch(url).then(function(r){return r.json()}).then(function(data){
+        if(data.cod&&data.cod!==200){document.getElementById('weatherDesc').textContent='Ошибка: '+(data.message||'неизвестно');return;}
+        lastWeatherData=data;
+        var temp=Math.round(data.main.temp);var desc=data.weather[0].description;var city=data.name;var iconCode=data.weather[0].icon;
+        document.getElementById('weatherTemp').textContent=temp+'°';
+        document.getElementById('weatherDesc').textContent=desc.charAt(0).toUpperCase()+desc.slice(1);
+        document.getElementById('weatherCity').textContent=city;
+        renderWeatherIcon(mapWeatherIcon(iconCode,data.weather[0].id));
+    }).catch(function(err){document.getElementById('weatherDesc').textContent='Нет связи';});
+}
+
+function mapWeatherIcon(iconCode,id){
+    if(id>=200&&id<300)return'storm';if(id>=300&&id<400)return'rain';
+    if(id>=500&&id<600){if(id===511)return'snow';return'rain';}
+    if(id>=600&&id<700)return'snow';if(id>=700&&id<800)return'mist';
+    if(id===800)return iconCode.endsWith('n')?'clear-night':'clear';
+    if(id>800){if(id===801||id===802)return'partly-cloudy';return'cloudy';}
+    return'clear';
+}
+
+// ===== WEATHER ICON RENDERERS =====
+function renderWeatherIcon(type){
+    var w=document.getElementById('weatherIconWrap');if(!w)return;
+    switch(type){
+        case'clear':w.innerHTML=renderSunny();break;case'clear-night':w.innerHTML=renderNight();break;
+        case'partly-cloudy':w.innerHTML=renderPartlyCloudy();break;case'cloudy':w.innerHTML=renderCloudy();break;
+        case'rain':w.innerHTML=renderRain();break;case'snow':w.innerHTML=renderSnow();break;
+        case'storm':w.innerHTML=renderStorm();break;case'mist':w.innerHTML=renderMist();break;
+        default:w.innerHTML=renderSunny();
+    }
+}
+
+function renderSunny(){var r='';for(var i=0;i<12;i++)r+='<div class="sun-ray" style="transform:rotate('+i*30+'deg) translateY(-55px)"></div>';return'<div class="weather-icon-sunny"><div class="sun-core"></div>'+r+'</div>';}
+function renderNight(){return'<div class="weather-icon-sunny" style="filter:hue-rotate(200deg) brightness(0.6)"><div class="sun-core" style="background:radial-gradient(circle,#c8d8f0,#8a9cc0);box-shadow:0 0 30px rgba(150,170,220,0.4)"></div></div>';}
+function renderCloudy(){return'<div class="weather-icon-cloudy"><div class="cloud cloud-back"></div><div class="cloud cloud-main"></div></div>';}
+function renderPartlyCloudy(){return'<div class="weather-icon-partly-cloudy"><div class="mini-sun"></div><div class="cloud cloud-main"></div></div>';}
+
+function renderRain(){
+    var d='';var p=[{l:28,d:0,h:18},{l:40,d:0.3,h:22},{l:52,d:0.6,h:16},{l:64,d:0.15,h:20},{l:76,d:0.45,h:18},{l:34,d:0.7,h:14},{l:58,d:0.2,h:22},{l:70,d:0.55,h:16}];
+    for(var i=0;i<p.length;i++)d+='<div class="raindrop" style="left:'+p[i].l+'px;top:65px;height:'+p[i].h+'px;animation-duration:0.7s;animation-delay:'+p[i].d+'s"></div>';
+    return'<div class="weather-icon-rainy"><div class="cloud cloud-main"></div>'+d+'</div>';
+}
+
+function renderSnow(){
+    var f='';var p=[{l:30,d:0,s:10},{l:42,d:0.8,s:8},{l:54,d:0.4,s:12},{l:66,d:1.2,s:9},{l:78,d:0.6,s:11},{l:36,d:1.0,s:7},{l:60,d:0.2,s:10},{l:72,d:0.9,s:8}];
+    for(var i=0;i<p.length;i++)f+='<div class="snowflake" style="left:'+p[i].l+'px;top:65px;font-size:'+p[i].s+'px;animation-duration:2.5s;animation-delay:'+p[i].d+'s">*</div>';
+    return'<div class="weather-icon-snowy"><div class="cloud cloud-main"></div>'+f+'</div>';
+}
+
+function renderStorm(){
+    var d='';var p=[{l:30,d:0,h:16},{l:45,d:0.3,h:20},{l:60,d:0.5,h:14},{l:75,d:0.15,h:18}];
+    for(var i=0;i<p.length;i++)d+='<div class="raindrop" style="left:'+p[i].l+'px;top:80px;height:'+p[i].h+'px;animation-duration:0.5s;animation-delay:'+p[i].d+'s"></div>';
+    return'<div class="weather-icon-stormy"><div class="cloud cloud-main"></div><div class="lightning-bolt"><svg viewBox="0 0 30 50" fill="none"><polygon points="18,0 8,22 15,22 10,50 25,18 17,18 22,0" fill="#FFD93D" opacity="0.9"/></svg></div>'+d+'</div>';
+}
+
+function renderMist(){
+    var l='';var c=[{t:35,l:10,w:100,d:0},{t:50,l:20,w:80,d:1.5},{t:65,l:5,w:110,d:3},{t:80,l:25,w:70,d:4.5}];
+    for(var i=0;i<c.length;i++)l+='<div class="mist-line" style="top:'+c[i].t+'px;left:'+c[i].l+'px;width:'+c[i].w+'px;animation-delay:'+c[i].d+'s"></div>';
+    return'<div class="weather-icon-misty">'+l+'</div>';
+}
+
+// ===== INIT =====
+fetchWeather();
+setInterval(fetchWeather,CONFIG.weatherRefreshInterval);
+
+// Для теста в браузере БЕЗ Lively Wallpaper — раскомментируйте строку ниже:
+// simulateData();
+
+function simulateData(){
+    var f={NameCpu:"Intel Core i7",NameGpu:"NVIDIA RTX 3080",NameNetCard:"Ethernet",CurrentCpu:Math.floor(Math.random()*40+10),CurrentGpu3D:Math.floor(Math.random()*30+5),CurrentNetDown:Math.floor(Math.random()*500000),CurrentNetUp:Math.floor(Math.random()*50000),CurrentRamAvail:8000000+Math.floor(Math.random()*4000000),TotalRam:32768000};
+    livelySystemInformation(JSON.stringify(f));
+    setInterval(function(){f.CurrentCpu=Math.floor(Math.random()*60+5);f.CurrentGpu3D=Math.floor(Math.random()*50+2);f.CurrentNetDown=Math.floor(Math.random()*1000000);f.CurrentNetUp=Math.floor(Math.random()*100000);f.CurrentRamAvail=6000000+Math.floor(Math.random()*10000000);livelySystemInformation(JSON.stringify(f));},1000);
+}
+    </script>
+</body>
+</html>
