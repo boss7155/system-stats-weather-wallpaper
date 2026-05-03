@@ -65,27 +65,26 @@ canvas {
         padding: 4px;
 }
 
-/* Centered symmetric layout — closer to center */
-/* Left column — CPU top, GPU bottom */
+/* Centered symmetric layout — gap center at 50% for widget */
+/* Upper charts end at 30%, lower charts start at 70% → center = 50% */
 .chart-cpu {
         left: 15%;
-        top: 15%;
+        top: 10%;
 }
 
 .chart-gpu {
         left: 15%;
-        top: 52.5%;
+        top: 70%;
 }
 
-/* Right column — RAM top, Network bottom */
 .chart-ram {
         left: 63%;
-        top: 15%;
+        top: 10%;
 }
 
 .chart-net {
         left: 63%;
-        top: 52.5%;
+        top: 70%;
 }
 
 /* ===== CENTER WIDGET ===== */
