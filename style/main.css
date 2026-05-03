@@ -53,16 +53,16 @@ canvas {
         display: block;
 }
 
-/* ===== CHART BOXES — positioned like original ===== */
+/* ===== CHART BOXES — seamless, no visible borders ===== */
 .chart-box {
         z-index: 100;
         position: absolute;
         width: 20vw;
         height: 20vh;
-        background: rgba(0, 0, 0, 0.25);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        padding: 4px;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        padding: 0;
 }
 
 /* Centered symmetric layout — gap center at 50% for widget */
