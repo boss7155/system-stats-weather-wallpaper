@@ -1,7 +1,5 @@
 // =====================================================
 // SYSTEM STATS + WEATHER WALLPAPER
-// Original chart code from: https://github.com/rocksdanister/system-stats-wallpaper
-// Added: Clock + Weather widget with animated icons
 // =====================================================
 
 // ===== КОНФИГУРАЦИЯ =====
@@ -15,17 +13,17 @@ var CONFIG = {
     weatherUnits: 'metric',
 };
 
-// ===== CHART VARIABLES (ORIGINAL) =====
+// ===== CHART VARIABLES =====
 var cpuCounter = 0;
 var gpuCounter = 0;
 var netDownCounter = 0;
 var netUpCounter = 0;
 var memTotal = 1;
 var memFree = 0;
-var cpuName = "";
-var gpuName = "";
-var memoryName = "";
-var netCardName = "";
+var cpuName = "Processor";
+var gpuName = "Graphics";
+var memoryName = "Memory";
+var netCardName = "Network";
 var isChartInit = false;
 
 var chartColors = {
@@ -227,7 +225,7 @@ var ramChartConfig = {
         },
         title: {
             display: true,
-            text: memoryName,
+            text: 'Memory',
         },
         scales: {
             xAxes: [{
@@ -306,8 +304,9 @@ function initChart()
 
     var ctxRam = document.getElementById('ramChart').getContext('2d');
     ramChart = new Chart(ctxRam, ramChartConfig);
-};
+}
 
+// Lively Wallpaper callback — системные данные
 function livelySystemInformation(data)
 {
     var obj = JSON.parse(data);
@@ -326,12 +325,20 @@ function livelySystemInformation(data)
     memFree = obj.CurrentRamAvail;
     memTotal = obj.TotalRam;
 
-    if(!isChartInit)
-    {
-        isChartInit = true;
-        initChart();
-    }
+    // Update chart titles with real hardware names
+    if(cpuChart) cpuChart.options.title.text = cpuName;
+    if(gpuChart) gpuChart.options.title.text = gpuName;
+    if(netChart) netChart.options.title.text = netCardName;
+    if(ramChart) ramChart.options.title.text = memoryName;
+    if(cpuChart) cpuChart.update();
+    if(gpuChart) gpuChart.update();
+    if(netChart) netChart.update();
+    if(ramChart) ramChart.update();
 }
+
+// ===== ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ СРАЗУ =====
+// Запускаем графики сразу, не ждём Lively
+initChart();
 
 
 // =====================================================
@@ -382,7 +389,7 @@ function fetchWeather() {
         .then(function (response) { return response.json(); })
         .then(function (data) {
             if (data.cod && data.cod !== 200) {
-                document.getElementById('weatherDesc').textContent = 'Ошибка: ' + (data.message || 'неизвестно');
+                document.getElementById('weatherDesc').textContent = 'Ошибка: ' + (data.message || '');
                 return;
             }
             var temp = Math.round(data.main.temp);
@@ -437,14 +444,14 @@ function renderWeatherIcon(type) {
 function renderSunnyIcon() {
     var rays = '';
     for (var i = 0; i < 12; i++) {
-        rays += '<div class="sun-ray" style="transform:rotate(' + (i * 30) + 'deg) translateY(-48px)"></div>';
+        rays += '<div class="sun-ray" style="transform:rotate(' + (i * 30) + 'deg) translateY(-42px)"></div>';
     }
     return '<div class="weather-icon-sunny"><div class="sun-core"></div>' + rays + '</div>';
 }
 
 function renderNightIcon() {
     return '<div class="weather-icon-sunny" style="filter:hue-rotate(200deg) brightness(0.6)">' +
-        '<div class="sun-core" style="background:radial-gradient(circle,#c8d8f0,#8a9cc0);box-shadow:0 0 25px rgba(150,170,220,0.4)"></div>' +
+        '<div class="sun-core" style="background:radial-gradient(circle,#c8d8f0,#8a9cc0);box-shadow:0 0 20px rgba(150,170,220,0.3)"></div>' +
         '</div>';
 }
 
@@ -470,7 +477,7 @@ function renderRainIcon() {
     ];
     for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
-        drops += '<div class="raindrop" style="left:' + p.left + 'px;top:55px;height:' + p.height + 'px;animation-duration:0.7s;animation-delay:' + p.delay + 's"></div>';
+        drops += '<div class="raindrop" style="left:' + p.left + 'px;top:50px;height:' + p.height + 'px;animation-duration:0.7s;animation-delay:' + p.delay + 's"></div>';
     }
     return '<div class="weather-icon-rainy"><div class="cloud cloud-main"></div>' + drops + '</div>';
 }
@@ -489,7 +496,7 @@ function renderSnowIcon() {
     ];
     for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
-        flakes += '<div class="snowflake" style="left:' + p.left + 'px;top:55px;font-size:' + p.size + 'px;animation-duration:2.5s;animation-delay:' + p.delay + 's">*</div>';
+        flakes += '<div class="snowflake" style="left:' + p.left + 'px;top:50px;font-size:' + p.size + 'px;animation-duration:2.5s;animation-delay:' + p.delay + 's">*</div>';
     }
     return '<div class="weather-icon-snowy"><div class="cloud cloud-main"></div>' + flakes + '</div>';
 }
@@ -504,7 +511,7 @@ function renderStormIcon() {
     ];
     for (var i = 0; i < positions.length; i++) {
         var p = positions[i];
-        drops += '<div class="raindrop" style="left:' + p.left + 'px;top:70px;height:' + p.height + 'px;animation-duration:0.5s;animation-delay:' + p.delay + 's"></div>';
+        drops += '<div class="raindrop" style="left:' + p.left + 'px;top:65px;height:' + p.height + 'px;animation-duration:0.5s;animation-delay:' + p.delay + 's"></div>';
     }
     return '<div class="weather-icon-stormy"><div class="cloud cloud-main"></div>' +
         '<div class="lightning-bolt"><svg viewBox="0 0 30 50" fill="none"><polygon points="18,0 8,22 15,22 10,50 25,18 17,18 22,0" fill="#FFD93D" opacity="0.9"/></svg></div>' +
@@ -514,10 +521,10 @@ function renderStormIcon() {
 function renderMistIcon() {
     var lines = '';
     var configs = [
-        { top: 30, left: 8, width: 84, delay: 0 },
-        { top: 42, left: 16, width: 68, delay: 1.5 },
-        { top: 54, left: 4, width: 92, delay: 3 },
-        { top: 66, left: 20, width: 60, delay: 4.5 },
+        { top: 30, left: 8, width: 74, delay: 0 },
+        { top: 40, left: 14, width: 60, delay: 1.5 },
+        { top: 50, left: 4, width: 82, delay: 3 },
+        { top: 60, left: 18, width: 54, delay: 4.5 },
     ];
     for (var i = 0; i < configs.length; i++) {
         var c = configs[i];
