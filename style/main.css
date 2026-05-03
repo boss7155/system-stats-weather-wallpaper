@@ -18,6 +18,38 @@ canvas {
         display: block;
 }
 
+/* ===== CHART BOXES — positioned like original ===== */
+.chart-box {
+        z-index: 100;
+        position: absolute;
+        width: 22vw;
+        height: 22vh;
+        background: rgba(0, 0, 0, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        padding: 4px;
+}
+
+.chart-cpu {
+        left: 3%;
+        top: 8%;
+}
+
+.chart-gpu {
+        left: 3%;
+        top: 52%;
+}
+
+.chart-ram {
+        left: 75%;
+        top: 8%;
+}
+
+.chart-net {
+        left: 75%;
+        top: 52%;
+}
+
 /* ===== CENTER WIDGET ===== */
 .center-widget {
         position: fixed;

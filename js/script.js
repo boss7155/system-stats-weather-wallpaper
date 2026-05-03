@@ -20,53 +20,59 @@ var netDownCounter = 0;
 var netUpCounter = 0;
 var memTotal = 1;
 var memFree = 0;
-var cpuName = "Processor";
-var gpuName = "Graphics";
-var memoryName = "Memory";
+var cpuName = "CPU";
+var gpuName = "GPU";
+var memoryName = "RAM";
 var netCardName = "Network";
 var isChartInit = false;
+var livelyConnected = false; // true when livelySystemInformation was called
 
 var chartColors = {
-    red: 'rgb(255, 99, 132)',
-    orange: 'rgb(255, 159, 64)',
-    yellow: 'rgb(255, 205, 86)',
-    green: 'rgb(0, 192, 0)',
-    blue: 'rgb(54, 162, 235)',
-    purple: 'rgb(153, 102, 255)',
-    grey: 'rgb(201, 203, 207)',
-    lightGrey: 'rgb(105, 105, 105)',
-    black: 'rgb(0, 0, 0)',
+    cpu: 'rgb(0, 200, 255)',
+    gpu: 'rgb(180, 100, 255)',
+    ram: 'rgb(0, 255, 150)',
+    netDown: 'rgb(255, 160, 0)',
+    netUp: 'rgb(255, 80, 120)',
+    grey: 'rgb(100, 100, 100)',
 };
 var color = Chart.helpers.color;
 
-//global chart defaults
+// Global chart defaults — dark theme
+Chart.defaults.global.defaultFontColor = 'rgba(255,255,255,0.6)';
+Chart.defaults.global.defaultFontFamily = 'Monospace';
+Chart.defaults.global.defaultFontSize = 11;
 Chart.defaults.global.legend.display = false;
 Chart.defaults.global.responsive = true;
+Chart.defaults.global.maintainAspectRatio = false;
 Chart.defaults.global.elements.pointRadius = 0;
 Chart.defaults.global.tooltips.enabled = false;
+Chart.defaults.global.animation.duration = 0;
+
+// ===== CHART CONFIGS =====
 
 var cpuChartConfig = {
     type: 'line',
     data: {
         datasets: [{
-            label: 'Dataset 1',
-            backgroundColor: color(chartColors.grey).alpha(0.5).rgbString(),
-            borderColor: chartColors.grey,
-            fill: false,
-            lineTension: 0,
-            borderDash: [0, 0],
+            label: 'CPU',
+            backgroundColor: color(chartColors.cpu).alpha(0.15).rgbString(),
+            borderColor: chartColors.cpu,
+            borderWidth: 1.5,
+            fill: true,
+            lineTension: 0.3,
             pointRadius: 0,
             data: []
         }],
     },
-    options: {   
-        maintainAspectRatio: false,   
-        legend: {
-            display: false,
-        },
+    options: {
+        maintainAspectRatio: false,
+        legend: { display: false },
         title: {
             display: true,
-            text: 'Processor',
+            text: 'CPU',
+            fontColor: 'rgba(255,255,255,0.7)',
+            fontSize: 12,
+            padding: 6,
         },
         scales: {
             xAxes: [{
@@ -77,19 +83,19 @@ var cpuChartConfig = {
                     delay: 1000,
                     onRefresh: onRefresh
                 },
-                ticks: {
-                    display: false, 
-                },
+                ticks: { display: false },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }],
             yAxes: [{
-                scaleLabel: {
-                    display: false,
-                    labelString: '%'
-                },
+                scaleLabel: { display: false },
                 ticks: {
                     beginAtZero: true,
-                    max : 100
-                }
+                    max: 100,
+                    fontColor: 'rgba(255,255,255,0.3)',
+                    fontSize: 9,
+                    maxTicksLimit: 5,
+                },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }]
         },
     }
@@ -99,24 +105,25 @@ var gpuChartConfig = {
     type: 'line',
     data: {
         datasets: [{
-            label: 'Dataset 1 (linear interpolation)',
-            backgroundColor: color(chartColors.grey).alpha(0.5).rgbString(),
-            borderColor: chartColors.grey,
-            fill: false,
-            lineTension: 0,
-            borderDash: [0, 0],
+            label: 'GPU',
+            backgroundColor: color(chartColors.gpu).alpha(0.15).rgbString(),
+            borderColor: chartColors.gpu,
+            borderWidth: 1.5,
+            fill: true,
+            lineTension: 0.3,
             pointRadius: 0,
             data: []
         }]
     },
-    options: {   
-        maintainAspectRatio: false,          
-        legend: {
-            display: false,
-        },
+    options: {
+        maintainAspectRatio: false,
+        legend: { display: false },
         title: {
             display: true,
-            text: 'Graphics',
+            text: 'GPU',
+            fontColor: 'rgba(255,255,255,0.7)',
+            fontSize: 12,
+            padding: 6,
         },
         scales: {
             xAxes: [{
@@ -127,78 +134,19 @@ var gpuChartConfig = {
                     delay: 1000,
                     onRefresh: onRefresh
                 },
-                ticks: {
-                    display: false, 
-                },
+                ticks: { display: false },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }],
             yAxes: [{
-                scaleLabel: {
-                    display: false,
-                    labelString: '%'
-                },
-                 ticks: {
-                    beginAtZero: true,
-                    max : 100
-            }
-            }]
-        },
-    }
-};
-
-var netChartConfig = {
-    type: 'line',
-    data: {
-        datasets: [{
-            label: 'Net Down',
-            backgroundColor: color(chartColors.grey).alpha(0.5).rgbString(),
-            borderColor: chartColors.grey,
-            fill: false,
-            lineTension: 0,
-            borderDash: [0, 0],
-            pointRadius: 0,
-            data: []
-        },
-        {
-            label: 'Net Up',
-            backgroundColor: color(chartColors.lightGrey).alpha(0.5).rgbString(),
-            borderColor: chartColors.lightGrey,
-            fill: false,
-            lineTension: 0,
-            borderDash: [0, 0],
-            pointRadius: 0,
-            data: []
-        }]
-    },
-    options: {          
-        legend: {
-            display: false,
-        },
-        title: {
-            display: true,
-            text: 'Network',
-        },
-        scales: {
-            xAxes: [{
-                type: 'realtime',
-                realtime: {
-                    duration: 20000,
-                    refresh: 1000,
-                    delay: 1000,
-                    onRefresh: onRefresh
-                },
+                scaleLabel: { display: false },
                 ticks: {
-                    display: false, 
-                },
-            }],
-            yAxes: [{
-                scaleLabel: {
-                    display: false,
-                    labelString: '%'
-                },
-                 ticks: {
                     beginAtZero: true,
-                    suggestedMax : 100
-            }
+                    max: 100,
+                    fontColor: 'rgba(255,255,255,0.3)',
+                    fontSize: 9,
+                    maxTicksLimit: 5,
+                },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }]
         },
     }
@@ -208,24 +156,25 @@ var ramChartConfig = {
     type: 'line',
     data: {
         datasets: [{
-            label: 'Dataset 1 (linear interpolation)',
-            backgroundColor: color(chartColors.grey).alpha(0.5).rgbString(),
-            borderColor: chartColors.grey,
-            fill: false,
-            lineTension: 0,
-            borderDash: [0, 0],
+            label: 'RAM',
+            backgroundColor: color(chartColors.ram).alpha(0.15).rgbString(),
+            borderColor: chartColors.ram,
+            borderWidth: 1.5,
+            fill: true,
+            lineTension: 0.3,
             pointRadius: 0,
             data: []
         }]
     },
     options: {
-        maintainAspectRatio: false,           
-        legend: {
-            display: false,
-        },
+        maintainAspectRatio: false,
+        legend: { display: false },
         title: {
             display: true,
-            text: 'Memory',
+            text: 'RAM',
+            fontColor: 'rgba(255,255,255,0.7)',
+            fontSize: 12,
+            padding: 6,
         },
         scales: {
             xAxes: [{
@@ -236,29 +185,87 @@ var ramChartConfig = {
                     delay: 1000,
                     onRefresh: onRefresh
                 },
-                ticks: {
-                    display: false, 
-                },
+                ticks: { display: false },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }],
             yAxes: [{
-                scaleLabel: {
-                    display: false,
-                    labelString: '%'
-                },
-                 ticks: {
+                scaleLabel: { display: false },
+                ticks: {
                     beginAtZero: true,
-                    max : 100,
-            }
+                    max: 100,
+                    fontColor: 'rgba(255,255,255,0.3)',
+                    fontSize: 9,
+                    maxTicksLimit: 5,
+                },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
             }]
         },
     }
 };
 
-function onRefresh(chart) 
-{
+var netChartConfig = {
+    type: 'line',
+    data: {
+        datasets: [{
+            label: 'Download',
+            backgroundColor: color(chartColors.netDown).alpha(0.15).rgbString(),
+            borderColor: chartColors.netDown,
+            borderWidth: 1.5,
+            fill: true,
+            lineTension: 0.3,
+            pointRadius: 0,
+            data: []
+        },
+        {
+            label: 'Upload',
+            backgroundColor: color(chartColors.netUp).alpha(0.1).rgbString(),
+            borderColor: chartColors.netUp,
+            borderWidth: 1.5,
+            fill: true,
+            lineTension: 0.3,
+            pointRadius: 0,
+            data: []
+        }]
+    },
+    options: {
+        maintainAspectRatio: false,
+        legend: { display: false },
+        title: {
+            display: true,
+            text: 'Network',
+            fontColor: 'rgba(255,255,255,0.7)',
+            fontSize: 12,
+            padding: 6,
+        },
+        scales: {
+            xAxes: [{
+                type: 'realtime',
+                realtime: {
+                    duration: 20000,
+                    refresh: 1000,
+                    delay: 1000,
+                    onRefresh: onRefresh
+                },
+                ticks: { display: false },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+            }],
+            yAxes: [{
+                scaleLabel: { display: false },
+                ticks: {
+                    beginAtZero: true,
+                    fontColor: 'rgba(255,255,255,0.3)',
+                    fontSize: 9,
+                    maxTicksLimit: 5,
+                },
+                gridLines: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+            }]
+        },
+    }
+};
+
+function onRefresh(chart) {
     var data = [];
-    switch(chart)
-    {
+    switch (chart) {
         case cpuChart:
             data[0] = cpuCounter;
             break;
@@ -270,13 +277,12 @@ function onRefresh(chart)
             data[1] = netUpCounter;
             break;
         case ramChart:
-            data[0] = (memTotal - memFree)*100/memTotal;
-            break;  
+            data[0] = memTotal > 0 ? ((memTotal - memFree) * 100 / memTotal) : 0;
+            break;
     }
 
     var i = 0;
-    chart.config.data.datasets.forEach(
-        function(dataset) {
+    chart.config.data.datasets.forEach(function (dataset) {
         dataset.data.push({
             x: Date.now(),
             y: data[i],
@@ -286,8 +292,8 @@ function onRefresh(chart)
 }
 
 var cpuChart, gpuChart, netChart, ramChart;
-function initChart() 
-{
+
+function initChart() {
     cpuChartConfig.options.title.text = cpuName;
     gpuChartConfig.options.title.text = gpuName;
     netChartConfig.options.title.text = netCardName;
@@ -304,41 +310,103 @@ function initChart()
 
     var ctxRam = document.getElementById('ramChart').getContext('2d');
     ramChart = new Chart(ctxRam, ramChartConfig);
+
+    isChartInit = true;
 }
 
-// Lively Wallpaper callback — системные данные
-function livelySystemInformation(data)
-{
+// =====================================================
+// Lively Wallpaper callback — real system data
+// =====================================================
+function livelySystemInformation(data) {
+    livelyConnected = true;
+
     var obj = JSON.parse(data);
 
-    //hw name
-    cpuName = obj.NameCpu;
-    gpuName = obj.NameGpu;
-    netCardName = obj.NameNetCard;
-    memoryName = "Memory (" + obj.TotalRam/1024 + " GB)";
+    // Hardware names
+    cpuName = obj.NameCpu || "CPU";
+    gpuName = obj.NameGpu || "GPU";
+    netCardName = obj.NameNetCard || "Network";
+    memoryName = "RAM (" + (obj.TotalRam / 1024).toFixed(0) + " GB)";
 
-    //chart data.
-    cpuCounter = obj.CurrentCpu;
-    gpuCounter = obj.CurrentGpu3D;
-    netDownCounter = (obj.CurrentNetDown*8)/(1024*1024);
-    netUpCounter = (obj.CurrentNetUp*8)/(1024*1024);
-    memFree = obj.CurrentRamAvail;
-    memTotal = obj.TotalRam;
+    // Chart data
+    cpuCounter = obj.CurrentCpu || 0;
+    gpuCounter = obj.CurrentGpu3D || 0;
+    netDownCounter = (obj.CurrentNetDown * 8) / (1024 * 1024);
+    netUpCounter = (obj.CurrentNetUp * 8) / (1024 * 1024);
+    memFree = obj.CurrentRamAvail || 0;
+    memTotal = obj.TotalRam || 1;
 
     // Update chart titles with real hardware names
-    if(cpuChart) cpuChart.options.title.text = cpuName;
-    if(gpuChart) gpuChart.options.title.text = gpuName;
-    if(netChart) netChart.options.title.text = netCardName;
-    if(ramChart) ramChart.options.title.text = memoryName;
-    if(cpuChart) cpuChart.update();
-    if(gpuChart) gpuChart.update();
-    if(netChart) netChart.update();
-    if(ramChart) ramChart.update();
+    if (cpuChart) cpuChart.options.title.text = cpuName;
+    if (gpuChart) gpuChart.options.title.text = gpuName;
+    if (netChart) netChart.options.title.text = netCardName;
+    if (ramChart) ramChart.options.title.text = memoryName;
 }
 
-// ===== ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ СРАЗУ =====
-// Запускаем графики сразу, не ждём Lively
+// =====================================================
+// SIMULATION MODE — fallback when loaded via URL
+// (livelySystemInformation is never called)
+// =====================================================
+var simInterval = null;
+
+function startSimulation() {
+    if (simInterval) return; // already running
+
+    var simCpuBase = 15 + Math.random() * 25;
+    var simGpuBase = 5 + Math.random() * 15;
+    var simRamUsed = 40 + Math.random() * 25;
+    var simNetDownBase = 0;
+    var simNetUpBase = 0;
+
+    simInterval = setInterval(function () {
+        if (livelyConnected) {
+            // Real data is flowing — stop simulation
+            clearInterval(simInterval);
+            simInterval = null;
+            return;
+        }
+
+        // Simulate realistic-looking data with random walks
+        simCpuBase += (Math.random() - 0.48) * 8;
+        simCpuBase = Math.max(5, Math.min(95, simCpuBase));
+        cpuCounter = Math.round(simCpuBase);
+
+        simGpuBase += (Math.random() - 0.48) * 6;
+        simGpuBase = Math.max(2, Math.min(90, simGpuBase));
+        gpuCounter = Math.round(simGpuBase);
+
+        simRamUsed += (Math.random() - 0.5) * 3;
+        simRamUsed = Math.max(30, Math.min(85, simRamUsed));
+        memTotal = 16384; // 16 GB simulated
+        memFree = memTotal * (1 - simRamUsed / 100);
+
+        // Network — occasional spikes
+        if (Math.random() < 0.15) {
+            simNetDownBase = 5 + Math.random() * 50;
+            simNetUpBase = 2 + Math.random() * 15;
+        } else {
+            simNetDownBase *= 0.85;
+            simNetUpBase *= 0.85;
+            if (simNetDownBase < 0.5) simNetDownBase = Math.random() * 2;
+            if (simNetUpBase < 0.3) simNetUpBase = Math.random() * 1;
+        }
+        netDownCounter = simNetDownBase;
+        netUpCounter = simNetUpBase;
+    }, 1000);
+}
+
+// =====================================================
+// INIT — Start charts immediately
+// =====================================================
 initChart();
+
+// If livelySystemInformation is not called within 3 seconds,
+// start simulation mode (for URL/GitHub Pages usage)
+setTimeout(function () {
+    if (!livelyConnected) {
+        startSimulation();
+    }
+}, 3000);
 
 
 // =====================================================
