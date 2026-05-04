@@ -734,7 +734,6 @@ setInterval(fetchWeather, CONFIG.weatherRefreshInterval);
 
 // =====================================================
 // AUDIO VISUALIZER — Lively Wallpaper callback
-// Based on Simple System 3D implementation by rocksdanister
 // =====================================================
 
 var vizCanvas = document.getElementById('audioVisualizer');
@@ -742,14 +741,25 @@ var vizCtx = vizCanvas ? vizCanvas.getContext('2d') : null;
 var musicWidgetEl = document.getElementById('musicWidget');
 
 var smoothBars = new Array(32).fill(0);
+var peakBars = new Array(32).fill(0);   // Peak hold markers
+var peakFall = new Array(32).fill(0);   // Peak fall speed
 var audioHideTimeout = null;
-var audioIsActive = false; // true only while livelyAudioListener is receiving data
+var audioIsActive = false;
+
+// Helper: hide the audio widget and clear track info
+function hideAudioWidget() {
+    audioIsActive = false;
+    if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
+    var trackTitleEl = document.getElementById('trackTitle');
+    var trackArtistEl = document.getElementById('trackArtist');
+    var trackInfoEl = document.getElementById('trackInfo');
+    if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+    if (trackArtistEl) trackArtistEl.textContent = '';
+    if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+}
 
 // Called by Lively when --system-nowplaying is enabled
-// ONLY updates track title/artist text. Does NOT control widget visibility.
-// Visibility is controlled ONLY by livelyAudioListener (audio data present = show).
-// When audio is NOT active (paused/stopped), track info is always hidden
-// regardless of what Lively sends — this keeps text synced with equalizer.
+// Updates track title/artist text. Visibility controlled by livelyAudioListener.
 function livelyCurrentTrack(data) {
     var obj = null;
     try { obj = JSON.parse(data); } catch (e) {}
@@ -758,7 +768,7 @@ function livelyCurrentTrack(data) {
     var trackArtistEl = document.getElementById('trackArtist');
     var trackInfoEl = document.getElementById('trackInfo');
 
-    // If audio is not active (paused/stopped), always hide track info
+    // If audio is not active, always hide track info
     if (!audioIsActive) {
         if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
         if (trackArtistEl) trackArtistEl.textContent = '';
@@ -767,12 +777,10 @@ function livelyCurrentTrack(data) {
     }
 
     if (obj == null) {
-        // No media — clear track info
         if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
         if (trackArtistEl) trackArtistEl.textContent = '';
         if (trackInfoEl) trackInfoEl.classList.remove('has-title');
     } else {
-        // Track exists — update text only (visibility is from audio data)
         var title = obj.Title || '';
         var artist = obj.Artist || '';
 
@@ -797,48 +805,17 @@ function livelyCurrentTrack(data) {
 }
 
 // Called by Lively when --audio is enabled
-// audioArray: 128 frequency values (0-128 range)
+// audioArray: frequency values from Lively audio capture
 function livelyAudioListener(audioArray) {
     if (!vizCtx || !musicWidgetEl) return;
 
-    // Check if audio is actually playing — if all values are near zero, treat as silence
-    var hasAudio = false;
-    for (var k = 0; k < audioArray.length; k++) {
-        if ((audioArray[k] || 0) > 2) { hasAudio = true; break; }
-    }
-
+    // Show widget — we're receiving audio data (means something is playing)
+    audioIsActive = true;
     clearTimeout(audioHideTimeout);
+    if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
 
-    if (hasAudio) {
-        // Real audio playing — show widget
-        audioIsActive = true;
-        if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
-
-        // Fallback: auto-hide if Lively stops calling this callback entirely
-        audioHideTimeout = setTimeout(function() {
-            audioIsActive = false;
-            if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
-            var trackTitleEl = document.getElementById('trackTitle');
-            var trackArtistEl = document.getElementById('trackArtist');
-            var trackInfoEl = document.getElementById('trackInfo');
-            if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
-            if (trackArtistEl) trackArtistEl.textContent = '';
-            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
-        }, 3000);
-    } else {
-        // Silence — Lively still calls this but with zero data (player closed/paused)
-        // Hide after short delay
-        audioHideTimeout = setTimeout(function() {
-            audioIsActive = false;
-            if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
-            var trackTitleEl = document.getElementById('trackTitle');
-            var trackArtistEl = document.getElementById('trackArtist');
-            var trackInfoEl = document.getElementById('trackInfo');
-            if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
-            if (trackArtistEl) trackArtistEl.textContent = '';
-            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
-        }, 1500);
-    }
+    // Auto-hide when Lively stops calling this (player closed/paused)
+    audioHideTimeout = setTimeout(hideAudioWidget, 3000);
 
     var width = vizCanvas.width;
     var height = vizCanvas.height;
@@ -846,61 +823,110 @@ function livelyAudioListener(audioArray) {
     var gap = 3;
     var barWidth = (width - gap * (barCount + 1)) / barCount;
 
-    // Find max value in audio array for normalization (like Simple System 3D)
-    var maxVal = 1;
-    for (var k = 0; k < audioArray.length; k++) {
-        if (audioArray[k] > maxVal) maxVal = audioArray[k];
-    }
-
-    var step = Math.floor(audioArray.length / barCount);
-
+    // Logarithmic frequency mapping — each bar covers a frequency band
+    var freqData = new Array(barCount);
     for (var i = 0; i < barCount; i++) {
-        // Average samples per bar
+        var logStart = Math.floor(Math.pow(audioArray.length, i / barCount));
+        var logEnd = Math.floor(Math.pow(audioArray.length, (i + 1) / barCount));
+        logStart = Math.max(0, Math.min(logStart, audioArray.length - 1));
+        logEnd = Math.max(logStart + 1, Math.min(logEnd, audioArray.length));
+
         var sum = 0;
-        for (var j = 0; j < step; j++) {
-            sum += audioArray[i * step + j] || 0;
+        for (var j = logStart; j < logEnd; j++) {
+            sum += audioArray[j] || 0;
         }
-        var raw = sum / step;
+        var raw = sum / (logEnd - logStart);
 
-        // Normalize relative to max value in this frame (like original)
-        var targetHeight = (raw / maxVal) * height * 0.85;
-        targetHeight = Math.max(0, targetHeight);
+        // Frequency-dependent boost: treble amplified to balance visual
+        var freqBoost = 1.0 + (i / barCount) * 1.5;
+        raw *= freqBoost;
 
-        // Smooth — fast attack, slower decay
-        var smoothing = (targetHeight > smoothBars[i]) ? 0.5 : 0.3;
-        smoothBars[i] += (targetHeight - smoothBars[i]) * smoothing;
+        freqData[i] = raw;
     }
 
-    // Draw — bars grow from BOTTOM up (classic equalizer style)
+    // Per-band normalization (4 groups of 8) for local normalization
+    for (var g = 0; g < 4; g++) {
+        var groupMax = 1;
+        for (var gi = g * 8; gi < (g + 1) * 8 && gi < barCount; gi++) {
+            if (freqData[gi] > groupMax) groupMax = freqData[gi];
+        }
+        for (var gi = g * 8; gi < (g + 1) * 8 && gi < barCount; gi++) {
+            var targetHeight = (freqData[gi] / groupMax) * height * 0.9;
+            targetHeight = Math.max(0, targetHeight);
+
+            // Each bar has slightly different attack/decay for organic feel
+            var attackSpeed = 0.45 + Math.random() * 0.15;
+            var decaySpeed = 0.15 + Math.random() * 0.1;
+            var smoothing = (targetHeight > smoothBars[gi]) ? attackSpeed : decaySpeed;
+            smoothBars[gi] += (targetHeight - smoothBars[gi]) * smoothing;
+
+            // Peak hold: peak stays then slowly falls
+            if (smoothBars[gi] > peakBars[gi]) {
+                peakBars[gi] = smoothBars[gi];
+                peakFall[gi] = 0;
+            } else {
+                peakFall[gi] += 0.08;
+                peakBars[gi] -= peakFall[gi];
+                if (peakBars[gi] < smoothBars[gi]) {
+                    peakBars[gi] = smoothBars[gi];
+                }
+            }
+        }
+    }
+
+    // Draw — bars from bottom up with peak markers
     vizCtx.clearRect(0, 0, width, height);
 
     var x = gap;
     for (var i = 0; i < barCount; i++) {
         var barHeight = smoothBars[i];
-        if (barHeight < 0.5) {
+        var peakHeight = peakBars[i];
+
+        // Draw peak marker
+        if (peakHeight > 2) {
+            var peakY = height - peakHeight;
+            var t = i / (barCount - 1);
+            var pr, pg, pb;
+            if (t < 0.5) { var pp = t * 2; pr = Math.round(20 + pp * 10); pg = Math.round(120 + pp * 135); pb = 255; }
+            else { var pp = (t - 0.5) * 2; pr = Math.round(30 + pp * 170); pg = Math.round(255 - pp * 155); pb = 255; }
+
+            vizCtx.fillStyle = 'rgba(' + Math.min(255, pr + 80) + ',' + Math.min(255, pg + 60) + ',' + Math.min(255, pb + 30) + ',0.9)';
+            vizCtx.fillRect(x, peakY - 2, barWidth, 2);
+        }
+
+        if (barHeight < 1) {
             x += barWidth + gap;
             continue;
         }
 
-        // Bottom-aligned: bar starts at bottom, grows upward
+        // Bottom-aligned bar
         var y = height - barHeight;
 
-        // Color — cyan center, purple edges
-        var ratio = Math.abs(i - barCount / 2) / (barCount / 2);
-        var r = Math.round(0 + ratio * 200);
-        var g = Math.round(220 - ratio * 130);
-        var b = 255;
-        var alpha = 0.6 + (barHeight / height) * 0.4;
+        // Smooth color across bars: deep blue → cyan → purple
+        var t = i / (barCount - 1);
+        var r, g, b;
+        if (t < 0.5) {
+            var p = t * 2;
+            r = Math.round(20 + p * 10);
+            g = Math.round(120 + p * 135);
+            b = 255;
+        } else {
+            var p = (t - 0.5) * 2;
+            r = Math.round(30 + p * 170);
+            g = Math.round(255 - p * 155);
+            b = 255;
+        }
 
-        // Gradient: bright at top, darker at bottom
+        var alpha = 0.7 + (barHeight / height) * 0.3;
+
+        // Vertical gradient: lighter at top
         var grad = vizCtx.createLinearGradient(x, y, x, height);
-        grad.addColorStop(0, 'rgba(' + Math.min(255, r + 60) + ',' + Math.min(255, g + 40) + ',' + b + ',' + alpha.toFixed(2) + ')');
-        grad.addColorStop(0.6, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.7).toFixed(2) + ')');
-        grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.3).toFixed(2) + ')');
+        grad.addColorStop(0, 'rgba(' + Math.min(255, r + 50) + ',' + Math.min(255, g + 40) + ',' + b + ',' + alpha.toFixed(2) + ')');
+        grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.6).toFixed(2) + ')');
         vizCtx.fillStyle = grad;
 
         // Rounded bar (round only at top)
-        var radius = Math.min(barWidth / 2, 4);
+        var radius = Math.min(barWidth / 2, 3);
         vizCtx.beginPath();
         vizCtx.moveTo(x + radius, y);
         vizCtx.lineTo(x + barWidth - radius, y);
@@ -912,22 +938,12 @@ function livelyAudioListener(audioArray) {
         vizCtx.closePath();
         vizCtx.fill();
 
-        // Glow on taller bars
-        if (barHeight > height * 0.35) {
-            vizCtx.save();
-            vizCtx.shadowColor = 'rgba(' + r + ',' + g + ',' + b + ',0.5)';
-            vizCtx.shadowBlur = 10;
-            vizCtx.fill();
-            vizCtx.restore();
-        }
-
         x += barWidth + gap;
     }
 }
 
 // Smooth decay when audio stops
 function vizDecayLoop() {
-    // If widget is hidden, decay bars to zero
     if (musicWidgetEl && !musicWidgetEl.classList.contains('has-track')) {
         var hasBars = false;
         for (var i = 0; i < smoothBars.length; i++) {
@@ -939,7 +955,6 @@ function vizDecayLoop() {
             }
         }
         if (hasBars && vizCtx) {
-            // Redraw with decayed values (bottom-up style)
             var width = vizCanvas.width;
             var height = vizCanvas.height;
             vizCtx.clearRect(0, 0, width, height);
@@ -948,20 +963,33 @@ function vizDecayLoop() {
             var barWidth = (width - gap * (barCount + 1)) / barCount;
             var x = gap;
             for (var i = 0; i < barCount; i++) {
+                peakFall[i] += 0.08;
+                peakBars[i] -= peakFall[i];
+                if (peakBars[i] < smoothBars[i]) peakBars[i] = smoothBars[i];
+
                 var barHeight = smoothBars[i];
-                if (barHeight < 0.5) { x += barWidth + gap; continue; }
+                var peakHeight = peakBars[i];
+                if (peakHeight > 2) {
+                    var peakY = height - peakHeight;
+                    var t = i / (barCount - 1);
+                    var pr, pg, pb;
+                    if (t < 0.5) { var pp = t * 2; pr = Math.round(20 + pp * 10); pg = Math.round(120 + pp * 135); pb = 255; }
+                    else { var pp = (t - 0.5) * 2; pr = Math.round(30 + pp * 170); pg = Math.round(255 - pp * 155); pb = 255; }
+                    vizCtx.fillStyle = 'rgba(' + Math.min(255, pr + 80) + ',' + Math.min(255, pg + 60) + ',' + Math.min(255, pb + 30) + ',0.5)';
+                    vizCtx.fillRect(x, peakY - 2, barWidth, 2);
+                }
+                if (barHeight < 1) { x += barWidth + gap; continue; }
                 var y = height - barHeight;
-                var ratio = Math.abs(i - barCount / 2) / (barCount / 2);
-                var r = Math.round(0 + ratio * 200);
-                var g = Math.round(220 - ratio * 130);
-                var b = 255;
-                var alpha = 0.4 + (barHeight / height) * 0.3;
+                var t = i / (barCount - 1);
+                var r, g, b;
+                if (t < 0.5) { var p = t * 2; r = Math.round(20 + p * 10); g = Math.round(120 + p * 135); b = 255; }
+                else { var p = (t - 0.5) * 2; r = Math.round(30 + p * 170); g = Math.round(255 - p * 155); b = 255; }
+                var alpha = 0.4 + (barHeight / height) * 0.2;
                 var grad = vizCtx.createLinearGradient(x, y, x, height);
-                grad.addColorStop(0, 'rgba(' + Math.min(255, r + 60) + ',' + Math.min(255, g + 40) + ',' + b + ',' + alpha.toFixed(2) + ')');
-                grad.addColorStop(0.6, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.7).toFixed(2) + ')');
-                grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.3).toFixed(2) + ')');
+                grad.addColorStop(0, 'rgba(' + Math.min(255, r + 40) + ',' + Math.min(255, g + 30) + ',' + b + ',' + alpha.toFixed(2) + ')');
+                grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.5).toFixed(2) + ')');
                 vizCtx.fillStyle = grad;
-                var radius = Math.min(barWidth / 2, 4);
+                var radius = Math.min(barWidth / 2, 3);
                 vizCtx.beginPath();
                 vizCtx.moveTo(x + radius, y);
                 vizCtx.lineTo(x + barWidth - radius, y);
