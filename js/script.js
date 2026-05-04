@@ -4,7 +4,7 @@
 
 // ===== КОНФИГУРАЦИЯ =====
 var CONFIG = {
-    weatherApiKey: 'fb03172bdbe0819e4c53d9695ab10474',
+    weatherApiKey: 'YOUR_OPENWEATHERMAP_API_KEY', // Get free key at https://openweathermap.org/api
     weatherCity: 'Brest',
     weatherCountryCode: 'BY',
     timezone: 'Europe/Minsk',
@@ -495,23 +495,75 @@ function mapWeatherIcon(iconCode, id) {
 // =====================================================
 
 var currentBgType = '';
+var nightModeActive = false; // time-based night override (22:30–6:00)
+
+// ===== TIME-BASED NIGHT MODE (22:30 – 6:00 by timezone) =====
+function isNightTime() {
+    var now = new Date();
+    // Get local time in the configured timezone (Europe/Minsk)
+    var localStr = now.toLocaleString('en-US', { timeZone: CONFIG.timezone });
+    var localDate = new Date(localStr);
+    var hours = localDate.getHours();
+    var minutes = localDate.getMinutes();
+    var totalMin = hours * 60 + minutes;
+
+    // Night from 22:30 (22*60+30=1350) to 6:00 (6*60=360)
+    return totalMin >= 1350 || totalMin < 360;
+}
+
+function checkNightMode() {
+    var wasNight = nightModeActive;
+    nightModeActive = isNightTime();
+
+    if (nightModeActive !== wasNight) {
+        // Night mode changed — force background update
+        applyBackground();
+    }
+}
+
+// Combined background logic: night time overrides weather-based background
+function applyBackground() {
+    if (nightModeActive) {
+        // Force night background regardless of weather
+        doChangeBackground('night-time', 'textures/night.jpg', 'rgba(0,0,20,0.45)');
+    } else {
+        // Use weather-based background
+        var bgMap = {
+            'clear': 'textures/sunny.jpg',
+            'clear-night': 'textures/night.jpg',
+            'partly-cloudy': 'textures/sunny.jpg',
+            'cloudy': 'textures/cloudy.jpg',
+            'rain': 'textures/rain.jpg',
+            'snow': 'textures/snow.jpg',
+            'storm': 'textures/storm.jpg',
+            'mist': 'textures/cloudy.jpg',
+        };
+        var bgUrl = bgMap[currentBgType] || bgMap['clear'];
+
+        var overlayColor;
+        if (currentBgType === 'partly-cloudy') {
+            overlayColor = 'rgba(0,0,0,0.2)';
+        } else if (currentBgType === 'clear-night') {
+            overlayColor = 'rgba(0,0,20,0.3)';
+        } else if (currentBgType === 'storm') {
+            overlayColor = 'rgba(0,0,0,0.35)';
+        } else {
+            overlayColor = 'rgba(0,0,0,0.15)';
+        }
+        doChangeBackground(currentBgType, bgUrl, overlayColor);
+    }
+}
 
 function changeBackground(weatherType) {
-    if (weatherType === currentBgType) return; // no change needed
     currentBgType = weatherType;
+    applyBackground();
+}
 
-    var bgMap = {
-        'clear': 'textures/sunny.jpg',
-        'clear-night': 'textures/night.jpg',
-        'partly-cloudy': 'textures/sunny.jpg',   // use sunny bg, dimmed
-        'cloudy': 'textures/cloudy.jpg',
-        'rain': 'textures/rain.jpg',
-        'snow': 'textures/snow.jpg',
-        'storm': 'textures/storm.jpg',
-        'mist': 'textures/cloudy.jpg',            // use cloudy for mist
-    };
-
-    var bgUrl = bgMap[weatherType] || bgMap['clear'];
+// Core background crossfade logic
+var lastAppliedType = '';
+function doChangeBackground(type, bgUrl, overlayColor) {
+    if (type === lastAppliedType) return; // skip if same
+    lastAppliedType = type;
 
     // Fade transition: use two bg layers
     var bgCurrent = document.getElementById('bgCurrent');
@@ -531,18 +583,14 @@ function changeBackground(weatherType) {
     };
     img.src = bgUrl;
 
-    // Dim overlay for partly-cloudy at night
     var overlay = document.getElementById('bgOverlay');
-    if (weatherType === 'partly-cloudy') {
-        overlay.style.background = 'rgba(0,0,0,0.2)';
-    } else if (weatherType === 'clear-night') {
-        overlay.style.background = 'rgba(0,0,20,0.3)';
-    } else if (weatherType === 'storm') {
-        overlay.style.background = 'rgba(0,0,0,0.35)';
-    } else {
-        overlay.style.background = 'rgba(0,0,0,0.15)';
-    }
+    overlay.style.background = overlayColor;
 }
+
+// Check night mode every 30 seconds
+setInterval(checkNightMode, 30000);
+// Initial check
+checkNightMode();
 
 
 // =====================================================
@@ -681,118 +729,251 @@ setInterval(fetchWeather, CONFIG.weatherRefreshInterval);
 
 
 // =====================================================
-// MUSIC NOW-PLAYING — Lively Wallpaper callback
+// AUDIO VISUALIZER — Lively Wallpaper callback
+// Based on Simple System 3D implementation by rocksdanister
 // =====================================================
 
 var vizCanvas = document.getElementById('audioVisualizer');
 var vizCtx = vizCanvas ? vizCanvas.getContext('2d') : null;
-var albumArtEl = document.getElementById('albumArt');
-var musicTitleEl = document.getElementById('musicTitle');
-var musicArtistEl = document.getElementById('musicArtist');
 var musicWidgetEl = document.getElementById('musicWidget');
-var placeholderEl = document.getElementById('musicPlaceholder');
+
+var smoothBars = new Array(32).fill(0);
+var audioHideTimeout = null;
+var audioIsActive = false; // true only while livelyAudioListener is receiving data
 
 // Called by Lively when --system-nowplaying is enabled
+// ONLY updates track title/artist text. Does NOT control widget visibility.
+// Visibility is controlled ONLY by livelyAudioListener (audio data present = show).
+// When audio is NOT active (paused/stopped), track info is always hidden
+// regardless of what Lively sends — this keeps text synced with equalizer.
 function livelyCurrentTrack(data) {
     var obj = null;
     try { obj = JSON.parse(data); } catch (e) {}
 
-    if (obj == null) {
-        // No media playing
-        musicTitleEl.textContent = 'Нет воспроизведения';
-        musicArtistEl.textContent = '';
-        albumArtEl.classList.remove('visible');
-        placeholderEl.style.display = 'flex';
-        if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
-    } else {
-        // Track is playing
-        musicTitleEl.textContent = obj.Title || 'Неизвестно';
-        musicArtistEl.textContent = obj.Artist || '';
+    var trackTitleEl = document.getElementById('trackTitle');
+    var trackArtistEl = document.getElementById('trackArtist');
+    var trackInfoEl = document.getElementById('trackInfo');
 
-        if (obj.Thumbnail != null) {
-            albumArtEl.src = 'data:image/png;base64,' + obj.Thumbnail;
-            albumArtEl.classList.add('visible');
-            placeholderEl.style.display = 'none';
-        } else {
-            albumArtEl.classList.remove('visible');
-            placeholderEl.style.display = 'flex';
+    // If audio is not active (paused/stopped), always hide track info
+    if (!audioIsActive) {
+        if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+        if (trackArtistEl) trackArtistEl.textContent = '';
+        if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+        return;
+    }
+
+    if (obj == null) {
+        // No media — clear track info
+        if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+        if (trackArtistEl) trackArtistEl.textContent = '';
+        if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+    } else {
+        // Track exists — update text only (visibility is from audio data)
+        var title = obj.Title || '';
+        var artist = obj.Artist || '';
+
+        if (trackTitleEl && title) {
+            trackTitleEl.textContent = title;
+            if (title.length > 38) {
+                trackTitleEl.classList.add('marquee');
+            } else {
+                trackTitleEl.classList.remove('marquee');
+            }
+            if (trackInfoEl) trackInfoEl.classList.add('has-title');
+        } else if (trackTitleEl) {
+            trackTitleEl.textContent = '';
+            trackTitleEl.classList.remove('marquee');
+            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
         }
-        if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
+
+        if (trackArtistEl) {
+            trackArtistEl.textContent = artist || '';
+        }
     }
 }
 
-// Called by Lively when --audio is enabled — 128-length audio array
+// Called by Lively when --audio is enabled
+// audioArray: 128 frequency values (0-128 range)
 function livelyAudioListener(audioArray) {
-    if (!vizCtx) return;
+    if (!vizCtx || !musicWidgetEl) return;
+
+    // Check if audio is actually playing — if all values are near zero, treat as silence
+    var hasAudio = false;
+    for (var k = 0; k < audioArray.length; k++) {
+        if ((audioArray[k] || 0) > 2) { hasAudio = true; break; }
+    }
+
+    clearTimeout(audioHideTimeout);
+
+    if (hasAudio) {
+        // Real audio playing — show widget
+        audioIsActive = true;
+        if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
+
+        // Fallback: auto-hide if Lively stops calling this callback entirely
+        audioHideTimeout = setTimeout(function() {
+            audioIsActive = false;
+            if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
+            var trackTitleEl = document.getElementById('trackTitle');
+            var trackArtistEl = document.getElementById('trackArtist');
+            var trackInfoEl = document.getElementById('trackInfo');
+            if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+            if (trackArtistEl) trackArtistEl.textContent = '';
+            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+        }, 3000);
+    } else {
+        // Silence — Lively still calls this but with zero data (player closed/paused)
+        // Hide after short delay
+        audioHideTimeout = setTimeout(function() {
+            audioIsActive = false;
+            if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
+            var trackTitleEl = document.getElementById('trackTitle');
+            var trackArtistEl = document.getElementById('trackArtist');
+            var trackInfoEl = document.getElementById('trackInfo');
+            if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+            if (trackArtistEl) trackArtistEl.textContent = '';
+            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+        }, 1500);
+    }
 
     var width = vizCanvas.width;
     var height = vizCanvas.height;
+    var barCount = 32;
+    var gap = 3;
+    var barWidth = (width - gap * (barCount + 1)) / barCount;
 
-    vizCtx.clearRect(0, 0, width, height);
-
-    // Find max value for normalization
+    // Find max value in audio array for normalization (like Simple System 3D)
     var maxVal = 1;
     for (var k = 0; k < audioArray.length; k++) {
         if (audioArray[k] > maxVal) maxVal = audioArray[k];
     }
 
-    var barCount = 32;
     var step = Math.floor(audioArray.length / barCount);
-    var barWidth = (width / barCount) - 1.5;
-    var x = 0;
 
     for (var i = 0; i < barCount; i++) {
-        // Average a few samples per bar for smoother look
+        // Average samples per bar
         var sum = 0;
         for (var j = 0; j < step; j++) {
             sum += audioArray[i * step + j] || 0;
         }
-        var val = sum / step;
-        var barHeight = (val / maxVal) * height * 0.9;
-        barHeight = Math.max(2, barHeight);
+        var raw = sum / step;
 
-        var y = height - barHeight;
+        // Normalize relative to max value in this frame (like original)
+        var targetHeight = (raw / maxVal) * height * 0.85;
+        targetHeight = Math.max(0, targetHeight);
 
-        // Gradient per bar — cyan to purple
-        var ratio = i / barCount;
-        var r = Math.round(0 + ratio * 180);
-        var g = Math.round(200 - ratio * 100);
-        var b = Math.round(255);
-        vizCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.7)';
-
-        vizCtx.beginPath();
-        vizCtx.roundRect(x, y, barWidth, barHeight, 2);
-        vizCtx.fill();
-
-        x += barWidth + 1.5;
+        // Smooth — fast attack, slower decay
+        var smoothing = (targetHeight > smoothBars[i]) ? 0.5 : 0.3;
+        smoothBars[i] += (targetHeight - smoothBars[i]) * smoothing;
     }
-}
 
-// Fallback: draw idle visualizer bars when no audio
-function drawIdleViz() {
-    if (!vizCtx) return;
-    var width = vizCanvas.width;
-    var height = vizCanvas.height;
+    // Draw — bars grow from BOTTOM up (classic equalizer style)
     vizCtx.clearRect(0, 0, width, height);
 
-    var barCount = 32;
-    var barWidth = (width / barCount) - 1.5;
-    var x = 0;
-
+    var x = gap;
     for (var i = 0; i < barCount; i++) {
-        var barHeight = 2 + Math.random() * 3;
+        var barHeight = smoothBars[i];
+        if (barHeight < 0.5) {
+            x += barWidth + gap;
+            continue;
+        }
+
+        // Bottom-aligned: bar starts at bottom, grows upward
         var y = height - barHeight;
-        var ratio = i / barCount;
-        var r = Math.round(0 + ratio * 180);
-        var g = Math.round(200 - ratio * 100);
+
+        // Color — cyan center, purple edges
+        var ratio = Math.abs(i - barCount / 2) / (barCount / 2);
+        var r = Math.round(0 + ratio * 200);
+        var g = Math.round(220 - ratio * 130);
         var b = 255;
-        vizCtx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',0.2)';
+        var alpha = 0.6 + (barHeight / height) * 0.4;
+
+        // Gradient: bright at top, darker at bottom
+        var grad = vizCtx.createLinearGradient(x, y, x, height);
+        grad.addColorStop(0, 'rgba(' + Math.min(255, r + 60) + ',' + Math.min(255, g + 40) + ',' + b + ',' + alpha.toFixed(2) + ')');
+        grad.addColorStop(0.6, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.7).toFixed(2) + ')');
+        grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.3).toFixed(2) + ')');
+        vizCtx.fillStyle = grad;
+
+        // Rounded bar (round only at top)
+        var radius = Math.min(barWidth / 2, 4);
         vizCtx.beginPath();
-        vizCtx.roundRect(x, y, barWidth, barHeight, 2);
+        vizCtx.moveTo(x + radius, y);
+        vizCtx.lineTo(x + barWidth - radius, y);
+        vizCtx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+        vizCtx.lineTo(x + barWidth, height);
+        vizCtx.lineTo(x, height);
+        vizCtx.lineTo(x, y + radius);
+        vizCtx.quadraticCurveTo(x, y, x + radius, y);
+        vizCtx.closePath();
         vizCtx.fill();
-        x += barWidth + 1.5;
+
+        // Glow on taller bars
+        if (barHeight > height * 0.35) {
+            vizCtx.save();
+            vizCtx.shadowColor = 'rgba(' + r + ',' + g + ',' + b + ',0.5)';
+            vizCtx.shadowBlur = 10;
+            vizCtx.fill();
+            vizCtx.restore();
+        }
+
+        x += barWidth + gap;
     }
 }
 
-// Show idle visualizer initially
-drawIdleViz();
+// Smooth decay when audio stops
+function vizDecayLoop() {
+    // If widget is hidden, decay bars to zero
+    if (musicWidgetEl && !musicWidgetEl.classList.contains('has-track')) {
+        var hasBars = false;
+        for (var i = 0; i < smoothBars.length; i++) {
+            if (smoothBars[i] > 0.5) {
+                smoothBars[i] *= 0.85;
+                hasBars = true;
+            } else {
+                smoothBars[i] = 0;
+            }
+        }
+        if (hasBars && vizCtx) {
+            // Redraw with decayed values (bottom-up style)
+            var width = vizCanvas.width;
+            var height = vizCanvas.height;
+            vizCtx.clearRect(0, 0, width, height);
+            var barCount = 32;
+            var gap = 3;
+            var barWidth = (width - gap * (barCount + 1)) / barCount;
+            var x = gap;
+            for (var i = 0; i < barCount; i++) {
+                var barHeight = smoothBars[i];
+                if (barHeight < 0.5) { x += barWidth + gap; continue; }
+                var y = height - barHeight;
+                var ratio = Math.abs(i - barCount / 2) / (barCount / 2);
+                var r = Math.round(0 + ratio * 200);
+                var g = Math.round(220 - ratio * 130);
+                var b = 255;
+                var alpha = 0.4 + (barHeight / height) * 0.3;
+                var grad = vizCtx.createLinearGradient(x, y, x, height);
+                grad.addColorStop(0, 'rgba(' + Math.min(255, r + 60) + ',' + Math.min(255, g + 40) + ',' + b + ',' + alpha.toFixed(2) + ')');
+                grad.addColorStop(0.6, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.7).toFixed(2) + ')');
+                grad.addColorStop(1, 'rgba(' + r + ',' + g + ',' + b + ',' + (alpha * 0.3).toFixed(2) + ')');
+                vizCtx.fillStyle = grad;
+                var radius = Math.min(barWidth / 2, 4);
+                vizCtx.beginPath();
+                vizCtx.moveTo(x + radius, y);
+                vizCtx.lineTo(x + barWidth - radius, y);
+                vizCtx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
+                vizCtx.lineTo(x + barWidth, height);
+                vizCtx.lineTo(x, height);
+                vizCtx.lineTo(x, y + radius);
+                vizCtx.quadraticCurveTo(x, y, x + radius, y);
+                vizCtx.closePath();
+                vizCtx.fill();
+                x += barWidth + gap;
+            }
+        } else if (vizCtx) {
+            vizCtx.clearRect(0, 0, vizCanvas.width, vizCanvas.height);
+        }
+    }
+    requestAnimationFrame(vizDecayLoop);
+}
+requestAnimationFrame(vizDecayLoop);

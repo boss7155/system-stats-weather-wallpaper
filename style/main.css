@@ -312,93 +312,116 @@ canvas {
 .weather-icon-partly-cloudy .cloud-main::before { content:''; position:absolute; background:inherit; border-radius:50%; width:26px; height:26px; top:-16px; left:7px; }
 .weather-icon-partly-cloudy .cloud-main::after { content:''; position:absolute; background:inherit; border-radius:50%; width:20px; height:20px; top:-9px; left:26px; }
 
-/* ===== MUSIC NOW-PLAYING WIDGET ===== */
+/* ===== AUDIO VISUALIZER — centered between RAM & Network ===== */
+/* RAM: left 15%, w=20vw → right edge ~35% | Network: left 63% */
+/* Horizontal center of gap: ~49% | Vertical center of charts: top 70% + 10vh = 80% */
 .music-widget {
         z-index: 100;
         position: absolute;
-        left: 50%;
-        top: 78%;
-        transform: translateX(-50%);
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        background: rgba(0,0,0,0.35);
-        border: 1px solid rgba(255,255,255,0.06);
-        border-radius: 14px;
-        padding: 10px 18px;
-        backdrop-filter: blur(6px);
-        min-width: 280px;
-        opacity: 0.8;
-        transition: opacity 0.5s ease;
-}
-.music-widget:hover {
-        opacity: 1;
-}
-.music-widget.has-track {
-        opacity: 1;
-}
-
-.music-art-wrap {
-        width: 44px;
-        height: 44px;
-        border-radius: 8px;
-        overflow: hidden;
-        flex-shrink: 0;
-        position: relative;
-        background: rgba(255,255,255,0.05);
-}
-.music-art {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: none;
-}
-.music-art.visible {
-        display: block;
-}
-.music-art-placeholder {
-        width: 100%;
-        height: 100%;
+        left: 49%;
+        top: 80%;
+        transform: translate(-50%, -50%);
         display: flex;
         align-items: center;
         justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.8s ease, visibility 0.8s ease;
 }
-.music-art-placeholder svg {
-        width: 24px;
-        height: 24px;
-}
-.music-art.visible + .music-art-placeholder {
-        display: none;
+.music-widget.has-track {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
 }
 
-.music-info {
+.music-widget-inner {
         display: flex;
         flex-direction: column;
-        gap: 2px;
-        min-width: 0;
-        flex: 1;
-}
-.music-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: rgba(255,255,255,0.85);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 180px;
-}
-.music-artist {
-        font-size: 11px;
-        color: rgba(255,255,255,0.4);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 180px;
+        align-items: center;
+        gap: 8px;
 }
 
 .music-visualizer {
-        width: 200px;
-        height: 40px;
-        flex-shrink: 0;
-        opacity: 0.7;
+        width: 400px;
+        height: 80px;
+        opacity: 0.85;
+}
+
+/* ===== TRACK INFO — professional now-playing display ===== */
+.track-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        max-width: 400px;
+        width: 100%;
+        text-align: center;
+        opacity: 0;
+        transform: translateY(4px);
+        transition: opacity 0.5s ease 0.2s, transform 0.5s ease 0.2s;
+}
+.music-widget.has-track .track-info.has-title {
+        opacity: 1;
+        transform: translateY(0);
+}
+
+.track-title-wrap {
+        max-width: 100%;
+        overflow: hidden;
+        position: relative;
+}
+
+.track-title {
+        display: inline-block;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.9);
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+        text-shadow: 0 0 12px rgba(0,200,255,0.25), 0 1px 3px rgba(0,0,0,0.5);
+        padding: 0 4px;
+}
+
+/* Marquee animation — activates when title is too long */
+.track-title.marquee {
+        animation: trackMarquee 12s linear infinite;
+}
+.track-title.marquee-paused {
+        animation-play-state: paused;
+}
+
+@keyframes trackMarquee {
+        0%, 15% { transform: translateX(0); }
+        85%, 100% { transform: translateX(calc(-100% + 380px)); }
+}
+
+.track-artist {
+        font-size: 11px;
+        font-weight: 400;
+        color: rgba(255,255,255,0.45);
+        letter-spacing: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 360px;
+        text-transform: uppercase;
+}
+
+/* Subtle glow line below track info */
+.track-info::after {
+        content: '';
+        display: block;
+        width: 60%;
+        height: 1px;
+        margin-top: 4px;
+        background: linear-gradient(90deg, transparent, rgba(0,200,255,0.3), rgba(180,100,255,0.2), transparent);
+        border-radius: 1px;
+}
+.music-widget.has-track .track-info.has-title::after {
+        animation: glowLine 3s ease-in-out infinite;
+}
+@keyframes glowLine {
+        0%, 100% { opacity: 0.5; width: 60%; }
+        50% { opacity: 1; width: 80%; }
 }
