@@ -745,10 +745,14 @@ var peakBars = new Array(32).fill(0);   // Peak hold markers
 var peakFall = new Array(32).fill(0);   // Peak fall speed
 var audioHideTimeout = null;
 var audioIsActive = false;
+var lastTrackTitle = '';  // Cache track title for re-application
+var lastTrackArtist = ''; // Cache track artist for re-application
 
 // Helper: hide the audio widget and clear track info
 function hideAudioWidget() {
     audioIsActive = false;
+    lastTrackTitle = '';
+    lastTrackArtist = '';
     if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
     var trackTitleEl = document.getElementById('trackTitle');
     var trackArtistEl = document.getElementById('trackArtist');
@@ -758,49 +762,67 @@ function hideAudioWidget() {
     if (trackInfoEl) trackInfoEl.classList.remove('has-title');
 }
 
-// Called by Lively when --system-nowplaying is enabled
-// Updates track title/artist text. Visibility controlled by livelyAudioListener.
-function livelyCurrentTrack(data) {
-    var obj = null;
-    try { obj = JSON.parse(data); } catch (e) {}
-
+// Helper: apply cached track data to DOM elements
+function applyTrackInfo(title, artist) {
     var trackTitleEl = document.getElementById('trackTitle');
     var trackArtistEl = document.getElementById('trackArtist');
     var trackInfoEl = document.getElementById('trackInfo');
 
-    // If audio is not active, always hide track info
-    if (!audioIsActive) {
-        if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
-        if (trackArtistEl) trackArtistEl.textContent = '';
-        if (trackInfoEl) trackInfoEl.classList.remove('has-title');
-        return;
+    if (trackTitleEl && title) {
+        trackTitleEl.textContent = title;
+        if (title.length > 38) {
+            trackTitleEl.classList.add('marquee');
+        } else {
+            trackTitleEl.classList.remove('marquee');
+        }
+        if (trackInfoEl) trackInfoEl.classList.add('has-title');
     }
+    if (trackArtistEl) {
+        trackArtistEl.textContent = artist || '';
+    }
+}
 
-    if (obj == null) {
-        if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
-        if (trackArtistEl) trackArtistEl.textContent = '';
-        if (trackInfoEl) trackInfoEl.classList.remove('has-title');
-    } else {
+// Called by Lively when --system-nowplaying is enabled
+// IMPORTANT: livelyCurrentTrack fires BEFORE livelyAudioListener when a track starts.
+// We must show the widget immediately upon receiving valid track data,
+// without waiting for audioIsActive to be set by livelyAudioListener.
+function livelyCurrentTrack(data) {
+    var obj = null;
+    try { obj = JSON.parse(data); } catch (e) {}
+
+    if (obj != null && (obj.Title || obj.Artist)) {
+        // Got valid track data — show it immediately
         var title = obj.Title || '';
         var artist = obj.Artist || '';
+        lastTrackTitle = title;
+        lastTrackArtist = artist;
 
-        if (trackTitleEl && title) {
-            trackTitleEl.textContent = title;
-            if (title.length > 38) {
-                trackTitleEl.classList.add('marquee');
-            } else {
-                trackTitleEl.classList.remove('marquee');
-            }
-            if (trackInfoEl) trackInfoEl.classList.add('has-title');
-        } else if (trackTitleEl) {
-            trackTitleEl.textContent = '';
-            trackTitleEl.classList.remove('marquee');
-            if (trackInfoEl) trackInfoEl.classList.remove('has-title');
-        }
+        applyTrackInfo(title, artist);
 
-        if (trackArtistEl) {
-            trackArtistEl.textContent = artist || '';
-        }
+        // Show the widget right now — we have track data
+        audioIsActive = true;
+        clearTimeout(audioHideTimeout);
+        if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
+
+        // Set timeout: if livelyAudioListener doesn't confirm within 4 sec,
+        // it means audio isn't actually playing — hide everything
+        audioHideTimeout = setTimeout(hideAudioWidget, 4000);
+    } else {
+        // No track data (null) — player likely closed or stopped
+        // Clear cached track data and hide immediately
+        lastTrackTitle = '';
+        lastTrackArtist = '';
+        var trackTitleEl = document.getElementById('trackTitle');
+        var trackArtistEl = document.getElementById('trackArtist');
+        var trackInfoEl = document.getElementById('trackInfo');
+        if (trackTitleEl) { trackTitleEl.textContent = ''; trackTitleEl.classList.remove('marquee'); }
+        if (trackArtistEl) trackArtistEl.textContent = '';
+        if (trackInfoEl) trackInfoEl.classList.remove('has-title');
+
+        // Also hide the widget
+        audioIsActive = false;
+        clearTimeout(audioHideTimeout);
+        if (musicWidgetEl) musicWidgetEl.classList.remove('has-track');
     }
 }
 
@@ -809,10 +831,15 @@ function livelyCurrentTrack(data) {
 function livelyAudioListener(audioArray) {
     if (!vizCtx || !musicWidgetEl) return;
 
-    // Show widget — we're receiving audio data (means something is playing)
+    // Audio is playing — show widget
     audioIsActive = true;
     clearTimeout(audioHideTimeout);
     if (musicWidgetEl) musicWidgetEl.classList.add('has-track');
+
+    // Re-apply cached track info if it was cleared (safety net)
+    if (lastTrackTitle) {
+        applyTrackInfo(lastTrackTitle, lastTrackArtist);
+    }
 
     // Auto-hide when Lively stops calling this (player closed/paused)
     audioHideTimeout = setTimeout(hideAudioWidget, 3000);
