@@ -531,22 +531,26 @@ function applyBackground() {
         var bgMap = {
             'clear': 'textures/sunny.jpg',
             'clear-night': 'textures/night.jpg',
-            'partly-cloudy': 'textures/sunny.jpg',
-            'cloudy': 'textures/cloudy.jpg',
+            'partly-cloudy': 'textures/partly-cloudy.jpg',
+            'cloudy': 'textures/overcast.jpg',
             'rain': 'textures/rain.jpg',
             'snow': 'textures/snow.jpg',
             'storm': 'textures/storm.jpg',
-            'mist': 'textures/cloudy.jpg',
+            'mist': 'textures/overcast.jpg',
         };
         var bgUrl = bgMap[currentBgType] || bgMap['clear'];
 
         var overlayColor;
-        if (currentBgType === 'partly-cloudy') {
+        if (currentBgType === 'clear') {
+            overlayColor = 'rgba(0,0,0,0.3)';
+        } else if (currentBgType === 'partly-cloudy') {
             overlayColor = 'rgba(0,0,0,0.2)';
         } else if (currentBgType === 'clear-night') {
             overlayColor = 'rgba(0,0,20,0.3)';
         } else if (currentBgType === 'storm') {
             overlayColor = 'rgba(0,0,0,0.35)';
+        } else if (currentBgType === 'cloudy' || currentBgType === 'mist') {
+            overlayColor = 'rgba(0,0,0,0.25)';
         } else {
             overlayColor = 'rgba(0,0,0,0.15)';
         }
