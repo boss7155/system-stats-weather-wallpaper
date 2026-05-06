@@ -483,7 +483,16 @@ function mapWeatherIcon(iconCode, id) {
     if (id >= 300 && id < 400) return 'rain';
     if (id >= 500 && id < 600) { if (id === 511) return 'snow'; return 'rain'; }
     if (id >= 600 && id < 700) return 'snow';
-    if (id >= 700 && id < 800) return 'mist';
+    if (id >= 700 && id < 800) {
+        // Dust/sand/ash conditions → dust storm icon
+        if (id === 731 || id === 751 || id === 761 || id === 762) return 'dust';
+        // Squall → storm icon
+        if (id === 771) return 'storm';
+        // Tornado → storm icon
+        if (id === 781) return 'storm';
+        // Mist, fog, haze, smoke → mist icon
+        return 'mist';
+    }
     if (id === 800) return iconCode.endsWith('n') ? 'clear-night' : 'clear';
     if (id > 800) { if (id === 801 || id === 802) return 'partly-cloudy'; return 'cloudy'; }
     return 'clear';
@@ -537,6 +546,7 @@ function applyBackground() {
             'snow': 'textures/snow.jpg',
             'storm': 'textures/storm.jpg',
             'mist': 'textures/overcast.jpg',
+            'dust': 'textures/overcast.jpg',
         };
         var bgUrl = bgMap[currentBgType] || bgMap['clear'];
 
@@ -549,7 +559,7 @@ function applyBackground() {
             overlayColor = 'rgba(0,0,20,0.3)';
         } else if (currentBgType === 'storm') {
             overlayColor = 'rgba(0,0,0,0.35)';
-        } else if (currentBgType === 'cloudy' || currentBgType === 'mist') {
+        } else if (currentBgType === 'cloudy' || currentBgType === 'mist' || currentBgType === 'dust') {
             overlayColor = 'rgba(0,0,0,0.25)';
         } else {
             overlayColor = 'rgba(0,0,0,0.15)';
@@ -621,6 +631,7 @@ function renderWeatherIcon(type) {
         case 'snow': wrap.innerHTML = renderSnowIcon(); break;
         case 'storm': wrap.innerHTML = renderStormIcon(); break;
         case 'mist': wrap.innerHTML = renderMistIcon(); break;
+        case 'dust': wrap.innerHTML = renderDustIcon(); break;
         default: wrap.innerHTML = renderSunnyIcon();
     }
 }
@@ -729,6 +740,39 @@ function renderMistIcon() {
         lines += '<div class="mist-line" style="top:' + c.top + 'px;left:' + c.left + 'px;width:' + c.width + 'px;animation-delay:' + c.delay + 's"></div>';
     }
     return '<div class="weather-icon-misty">' + lines + '</div>';
+}
+
+function renderDustIcon() {
+    var particles = '';
+    var pConfigs = [
+        { left: 12, top: 18, size: 6, delay: 0, dur: 2.0 },
+        { left: 28, top: 30, size: 8, delay: 0.4, dur: 1.8 },
+        { left: 48, top: 14, size: 5, delay: 0.8, dur: 2.2 },
+        { left: 64, top: 26, size: 7, delay: 0.2, dur: 1.6 },
+        { left: 20, top: 42, size: 9, delay: 1.0, dur: 2.4 },
+        { left: 40, top: 50, size: 6, delay: 0.6, dur: 1.9 },
+        { left: 58, top: 38, size: 7, delay: 1.2, dur: 2.1 },
+        { left: 72, top: 48, size: 5, delay: 0.3, dur: 1.7 },
+        { left: 35, top: 60, size: 8, delay: 0.9, dur: 2.3 },
+        { left: 55, top: 64, size: 6, delay: 1.4, dur: 1.5 },
+    ];
+    for (var i = 0; i < pConfigs.length; i++) {
+        var p = pConfigs[i];
+        particles += '<div class="dust-particle" style="left:' + p.left + 'px;top:' + p.top + 'px;width:' + p.size + 'px;height:' + p.size + 'px;animation-duration:' + p.dur + 's;animation-delay:' + p.delay + 's"></div>';
+    }
+    // Wind lines sweeping across
+    var windLines = '';
+    var wConfigs = [
+        { top: 22, left: 5, width: 55, delay: 0 },
+        { top: 36, left: 15, width: 45, delay: 0.6 },
+        { top: 50, left: 8, width: 60, delay: 1.2 },
+        { top: 64, left: 20, width: 40, delay: 0.3 },
+    ];
+    for (var i = 0; i < wConfigs.length; i++) {
+        var w = wConfigs[i];
+        windLines += '<div class="dust-wind" style="top:' + w.top + 'px;left:' + w.left + 'px;width:' + w.width + 'px;animation-delay:' + w.delay + 's"></div>';
+    }
+    return '<div class="weather-icon-dust">' + windLines + particles + '</div>';
 }
 
 
