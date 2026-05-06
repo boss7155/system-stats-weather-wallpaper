@@ -505,36 +505,47 @@ function mapWeatherIcon(iconCode, id) {
 
 var currentBgType = '';
 var nightModeActive = false; // time-based night override (22:30–6:00)
+var eveningModeActive = false; // time-based evening override (19:30–22:30)
 
-// ===== TIME-BASED NIGHT MODE (22:30 – 6:00 by timezone) =====
-function isNightTime() {
+// ===== TIME-BASED MODES =====
+function getTimePeriod() {
     var now = new Date();
-    // Get local time in the configured timezone (Europe/Minsk)
     var localStr = now.toLocaleString('en-US', { timeZone: CONFIG.timezone });
     var localDate = new Date(localStr);
     var hours = localDate.getHours();
     var minutes = localDate.getMinutes();
     var totalMin = hours * 60 + minutes;
 
-    // Night from 22:30 (22*60+30=1350) to 6:00 (6*60=360)
-    return totalMin >= 1350 || totalMin < 360;
+    // Night: 22:30 (1350) – 6:00 (360)
+    if (totalMin >= 1350 || totalMin < 360) return 'night';
+    // Evening: 19:30 (1170) – 22:30 (1350)
+    if (totalMin >= 1170 && totalMin < 1350) return 'evening';
+    // Day: 6:00 – 19:30
+    return 'day';
 }
 
-function checkNightMode() {
+function checkTimeMode() {
     var wasNight = nightModeActive;
-    nightModeActive = isNightTime();
+    var wasEvening = eveningModeActive;
 
-    if (nightModeActive !== wasNight) {
-        // Night mode changed — force background update
+    var period = getTimePeriod();
+    nightModeActive = (period === 'night');
+    eveningModeActive = (period === 'evening');
+
+    if (nightModeActive !== wasNight || eveningModeActive !== wasEvening) {
+        // Time mode changed — force background update
         applyBackground();
     }
 }
 
-// Combined background logic: night time overrides weather-based background
+// Combined background logic: time overrides weather-based background
 function applyBackground() {
     if (nightModeActive) {
         // Force night background regardless of weather
         doChangeBackground('night-time', 'textures/night.jpg', 'rgba(0,0,20,0.45)');
+    } else if (eveningModeActive) {
+        // Evening background — warm twilight atmosphere
+        doChangeBackground('evening-time', 'textures/evening.jpg', 'rgba(10,5,20,0.3)');
     } else {
         // Use weather-based background
         var bgMap = {
@@ -609,10 +620,10 @@ function doChangeBackground(type, bgUrl, overlayColor) {
     overlay.style.background = overlayColor;
 }
 
-// Check night mode every 30 seconds
-setInterval(checkNightMode, 30000);
+// Check time mode every 30 seconds
+setInterval(checkTimeMode, 30000);
 // Initial check
-checkNightMode();
+checkTimeMode();
 
 
 // =====================================================
