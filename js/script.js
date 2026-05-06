@@ -569,6 +569,14 @@ function doChangeBackground(type, bgUrl, overlayColor) {
     if (type === lastAppliedType) return; // skip if same
     lastAppliedType = type;
 
+    // Toggle night-bg class on body — removes blur for night backgrounds
+    var isNight = (type === 'night-time' || type === 'clear-night');
+    if (isNight) {
+        document.body.classList.add('night-bg');
+    } else {
+        document.body.classList.remove('night-bg');
+    }
+
     // Fade transition: use two bg layers
     var bgCurrent = document.getElementById('bgCurrent');
     var bgNext = document.getElementById('bgNext');

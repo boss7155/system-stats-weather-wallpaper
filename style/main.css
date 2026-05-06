@@ -21,7 +21,7 @@ body {
         background-position: center;
         background-repeat: no-repeat;
         filter: blur(8px) brightness(0.7) saturate(1.2);
-        transition: opacity 1.5s ease-in-out;
+        transition: opacity 1.5s ease-in-out, filter 1.5s ease-in-out;
 }
 
 #bgCurrent {
@@ -31,6 +31,11 @@ body {
 
 #bgNext {
         opacity: 0;
+}
+
+/* Night background — no blur, sharper image */
+body.night-bg .bg-layer {
+        filter: brightness(0.65) saturate(1.1);
 }
 
 .bg-overlay {
