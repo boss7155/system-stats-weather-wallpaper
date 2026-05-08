@@ -832,6 +832,7 @@ var peakBars = new Array(32).fill(0);   // Peak hold markers
 var peakFall = new Array(32).fill(0);   // Peak fall speed
 var barAttack = new Array(32);  // Per-bar attack speed (fixed per bar, not random each frame)
 var barDecay = new Array(32);   // Per-bar decay speed (fixed per bar)
+var barLocalMax = new Array(32).fill(0.01); // Per-bar running local maximum (slow decay)
 var audioHideTimeout = null;
 var audioIsActive = false;
 var lastTrackTitle = '';  // Cache track title for re-application
@@ -989,26 +990,28 @@ function livelyAudioListener(audioArray) {
         freqData[i] = raw;
     }
 
-    // === INDIVIDUAL BAR NORMALIZATION ===
-    // Each bar is normalized against a running local maximum (its own peak)
-    // Plus a global minimum floor so bars always have some presence
-    var globalMax = 0;
+    // === PER-BAR LOCAL NORMALIZATION ===
+    // Each bar tracks its own running maximum with slow decay.
+    // This means bass bars respond to bass energy, treble bars respond to treble energy —
+    // no frequency dominates the others.
     for (var i = 0; i < barCount; i++) {
-        if (freqData[i] > globalMax) globalMax = freqData[i];
-    }
-    if (globalMax < 0.01) globalMax = 0.01; // prevent division by zero
+        // Update this bar's local max: rise fast, fall very slowly
+        if (freqData[i] > barLocalMax[i]) {
+            barLocalMax[i] = freqData[i]; // instant rise
+        } else {
+            barLocalMax[i] *= 0.997; // very slow decay (~30 sec to halve)
+            if (barLocalMax[i] < 0.01) barLocalMax[i] = 0.01;
+        }
 
-    for (var i = 0; i < barCount; i++) {
-        // Normalize to 0..1 range using global max, then scale to canvas height
-        var normalized = freqData[i] / globalMax;
+        // Normalize to THIS bar's own local max — always 0..1
+        var normalized = freqData[i] / barLocalMax[i];
 
-        // Add subtle per-bar personality variation:
-        // Each bar has a slightly different response curve
-        var barPersonality = 0.85 + (i * 7 % 13) / 130;  // 0.85..0.95 — subtle variation
-        normalized = Math.pow(normalized, barPersonality); // slight curve difference
+        // Apply slight per-bar curve for visual variety
+        var curve = 0.7 + (i * 7 % 11) / 110;  // 0.7..0.8 — subtle
+        normalized = Math.pow(normalized, curve);
 
-        // Scale to pixel height with headroom
-        var targetHeight = normalized * height * 0.85;
+        // Scale to pixel height
+        var targetHeight = normalized * height * 0.9;
         targetHeight = Math.max(0, targetHeight);
 
         // Smooth each bar independently with its own fixed attack/decay
