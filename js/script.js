@@ -469,13 +469,37 @@ function fetchWeather() {
             document.getElementById('weatherDesc').textContent = desc.charAt(0).toUpperCase() + desc.slice(1);
             document.getElementById('weatherCity').textContent = city;
 
-            var weatherType = mapWeatherIcon(iconCode, data.weather[0].id);
+            // Check ALL weather conditions — API may list clouds first, rain second
+            var weatherType = 'clear';
+            var highestPriority = 0;
+            for (var i = 0; i < data.weather.length; i++) {
+                var wId = data.weather[i].id;
+                var wIcon = data.weather[i].icon;
+                var wType = mapWeatherIcon(wIcon, wId);
+                var priority = getWeatherPriority(wType);
+                if (priority > highestPriority) {
+                    highestPriority = priority;
+                    weatherType = wType;
+                }
+            }
+
             renderWeatherIcon(weatherType);
             changeBackground(weatherType);
         })
         .catch(function (err) {
             document.getElementById('weatherDesc').textContent = 'Нет связи';
         });
+}
+
+// Priority: more severe weather wins when API returns multiple conditions
+// storm(8) > rain(7) > snow(6) > dust(5) > mist(4) > cloudy(3) > partly-cloudy(2) > clear(1)
+function getWeatherPriority(type) {
+    var priorities = {
+        'storm': 8, 'rain': 7, 'snow': 6, 'dust': 5,
+        'mist': 4, 'cloudy': 3, 'partly-cloudy': 2,
+        'clear': 1, 'clear-night': 1
+    };
+    return priorities[type] || 0;
 }
 
 function mapWeatherIcon(iconCode, id) {
