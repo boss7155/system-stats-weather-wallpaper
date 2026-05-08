@@ -830,10 +830,18 @@ var musicWidgetEl = document.getElementById('musicWidget');
 var smoothBars = new Array(32).fill(0);
 var peakBars = new Array(32).fill(0);   // Peak hold markers
 var peakFall = new Array(32).fill(0);   // Peak fall speed
+var barAttack = new Array(32);  // Per-bar attack speed (fixed per bar, not random each frame)
+var barDecay = new Array(32);   // Per-bar decay speed (fixed per bar)
 var audioHideTimeout = null;
 var audioIsActive = false;
 var lastTrackTitle = '';  // Cache track title for re-application
 var lastTrackArtist = ''; // Cache track artist for re-application
+
+// Initialize per-bar random attack/decay speeds (once, not every frame)
+for (var _bi = 0; _bi < 32; _bi++) {
+    barAttack[_bi] = 0.35 + (_bi % 5) * 0.06;  // 0.35..0.59 varied
+    barDecay[_bi] = 0.12 + (_bi % 7) * 0.015;  // 0.12..0.21 varied
+}
 
 // Helper: hide the audio widget and clear track info
 function hideAudioWidget() {
@@ -937,53 +945,87 @@ function livelyAudioListener(audioArray) {
     var gap = 3;
     var barWidth = (width - gap * (barCount + 1)) / barCount;
 
-    // Logarithmic frequency mapping — each bar covers a frequency band
+    // === NEW FREQUENCY MAPPING ===
+    // Split 128 frequency bins into 32 bars using weighted linear distribution
+    // This gives equal visual weight to low/mid/high frequencies
     var freqData = new Array(barCount);
+    var binCount = audioArray.length; // 128
+
     for (var i = 0; i < barCount; i++) {
-        var logStart = Math.floor(Math.pow(audioArray.length, i / barCount));
-        var logEnd = Math.floor(Math.pow(audioArray.length, (i + 1) / barCount));
-        logStart = Math.max(0, Math.min(logStart, audioArray.length - 1));
-        logEnd = Math.max(logStart + 1, Math.min(logEnd, audioArray.length));
+        // Each bar gets ~4 bins, but with slight overlap for smoother result
+        var centerBin = (i + 0.5) * binCount / barCount;
+        var halfSpan = Math.max(2, Math.floor(binCount / barCount / 2) + 1);
 
-        var sum = 0;
-        for (var j = logStart; j < logEnd; j++) {
-            sum += audioArray[j] || 0;
+        var binStart = Math.max(0, Math.floor(centerBin - halfSpan));
+        var binEnd = Math.min(binCount, Math.floor(centerBin + halfSpan));
+
+        // Weighted average — center bins contribute more
+        var weightedSum = 0;
+        var weightTotal = 0;
+        for (var j = binStart; j < binEnd; j++) {
+            var dist = Math.abs(j - centerBin) / (halfSpan + 1);
+            var w = 1.0 - dist * 0.6;  // center weight 1.0, edge weight 0.4
+            weightedSum += (audioArray[j] || 0) * w;
+            weightTotal += w;
         }
-        var raw = sum / (logEnd - logStart);
+        var raw = weightTotal > 0 ? weightedSum / weightTotal : 0;
 
-        // Frequency-dependent boost: treble amplified to balance visual
-        var freqBoost = 1.0 + (i / barCount) * 1.5;
-        raw *= freqBoost;
+        // Frequency-dependent sensitivity curve:
+        // Bass (left): moderate boost, Mid: base, Treble (right): strong boost
+        // This compensates for natural audio where bass dominates
+        var freqNorm = i / (barCount - 1); // 0..1
+        var sensitivity;
+        if (freqNorm < 0.25) {
+            sensitivity = 1.2;  // Bass — moderate
+        } else if (freqNorm < 0.5) {
+            sensitivity = 1.0;  // Low-mid — base
+        } else if (freqNorm < 0.75) {
+            sensitivity = 1.4;  // Upper-mid — boost
+        } else {
+            sensitivity = 1.8;  // Treble — strong boost
+        }
+        raw *= sensitivity;
 
         freqData[i] = raw;
     }
 
-    // Per-band normalization (4 groups of 8) for local normalization
-    for (var g = 0; g < 4; g++) {
-        var groupMax = 1;
-        for (var gi = g * 8; gi < (g + 1) * 8 && gi < barCount; gi++) {
-            if (freqData[gi] > groupMax) groupMax = freqData[gi];
-        }
-        for (var gi = g * 8; gi < (g + 1) * 8 && gi < barCount; gi++) {
-            var targetHeight = (freqData[gi] / groupMax) * height * 0.9;
-            targetHeight = Math.max(0, targetHeight);
+    // === INDIVIDUAL BAR NORMALIZATION ===
+    // Each bar is normalized against a running local maximum (its own peak)
+    // Plus a global minimum floor so bars always have some presence
+    var globalMax = 0;
+    for (var i = 0; i < barCount; i++) {
+        if (freqData[i] > globalMax) globalMax = freqData[i];
+    }
+    if (globalMax < 0.01) globalMax = 0.01; // prevent division by zero
 
-            // Each bar has slightly different attack/decay for organic feel
-            var attackSpeed = 0.45 + Math.random() * 0.15;
-            var decaySpeed = 0.15 + Math.random() * 0.1;
-            var smoothing = (targetHeight > smoothBars[gi]) ? attackSpeed : decaySpeed;
-            smoothBars[gi] += (targetHeight - smoothBars[gi]) * smoothing;
+    for (var i = 0; i < barCount; i++) {
+        // Normalize to 0..1 range using global max, then scale to canvas height
+        var normalized = freqData[i] / globalMax;
 
-            // Peak hold: peak stays then slowly falls
-            if (smoothBars[gi] > peakBars[gi]) {
-                peakBars[gi] = smoothBars[gi];
-                peakFall[gi] = 0;
-            } else {
-                peakFall[gi] += 0.08;
-                peakBars[gi] -= peakFall[gi];
-                if (peakBars[gi] < smoothBars[gi]) {
-                    peakBars[gi] = smoothBars[gi];
-                }
+        // Add subtle per-bar personality variation:
+        // Each bar has a slightly different response curve
+        var barPersonality = 0.85 + (i * 7 % 13) / 130;  // 0.85..0.95 — subtle variation
+        normalized = Math.pow(normalized, barPersonality); // slight curve difference
+
+        // Scale to pixel height with headroom
+        var targetHeight = normalized * height * 0.85;
+        targetHeight = Math.max(0, targetHeight);
+
+        // Smooth each bar independently with its own fixed attack/decay
+        var attack = barAttack[i];
+        var decay = barDecay[i];
+        var smoothing = (targetHeight > smoothBars[i]) ? attack : decay;
+        smoothBars[i] += (targetHeight - smoothBars[i]) * smoothing;
+
+        // Peak hold: peak stays then slowly falls
+        if (smoothBars[i] > peakBars[i]) {
+            peakBars[i] = smoothBars[i];
+            peakFall[i] = 0;
+        } else {
+            peakFall[i] += 0.06;
+            peakBars[i] -= peakFall[i];
+            if (peakBars[i] < smoothBars[i]) {
+                peakBars[i] = smoothBars[i];
             }
         }
     }
