@@ -465,8 +465,23 @@ function fetchWeather() {
             var city = data.name;
             var iconCode = data.weather[0].icon;
 
+            // Adjust description for time of day
+            var isNightIcon = iconCode.endsWith('n');
+            if (isNightIcon) {
+                // Night-time description adjustments
+                var nightMap = {
+                    'ясно': 'Ясная ночь',
+                    'небольшая облачность': 'Небольшая облачность',
+                    'облачно': 'Облачная ночь',
+                    'пасмурно': 'Пасмурная ночь',
+                    'переменная облачность': 'Переменная облачность',
+                };
+                desc = nightMap[desc.toLowerCase()] || desc;
+            }
+            desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+
             document.getElementById('weatherTemp').textContent = temp + '°';
-            document.getElementById('weatherDesc').textContent = desc.charAt(0).toUpperCase() + desc.slice(1);
+            document.getElementById('weatherDesc').textContent = desc;
             document.getElementById('weatherCity').textContent = city;
 
             // Check ALL weather conditions — API may list clouds first, rain second
@@ -481,6 +496,11 @@ function fetchWeather() {
                     highestPriority = priority;
                     weatherType = wType;
                 }
+            }
+
+            // Force night icon when it's nighttime — don't show sun at 1am
+            if (nightModeActive && weatherType === 'clear') {
+                weatherType = 'clear-night';
             }
 
             renderWeatherIcon(weatherType);
