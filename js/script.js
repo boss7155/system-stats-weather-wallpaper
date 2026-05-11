@@ -507,6 +507,12 @@ function fetchWeather() {
             // Reset background cache so weather change always applies
             lastAppliedType = '';
             changeBackground(weatherType);
+
+            // Debug: log what API returned and what we computed
+            console.log('[Weather] API weather:', JSON.stringify(data.weather), 
+                '→ weatherType:', weatherType, 
+                '→ currentBgType:', currentBgType,
+                'night:', nightModeActive, 'evening:', eveningModeActive);
         })
         .catch(function (err) {
             document.getElementById('weatherDesc').textContent = 'Нет связи';
@@ -634,6 +640,7 @@ function changeBackground(weatherType) {
 // Core background crossfade logic
 var lastAppliedType = '';
 function doChangeBackground(type, bgUrl, overlayColor) {
+    console.log('[BG] doChangeBackground:', type, '→', bgUrl, 'lastApplied:', lastAppliedType);
     if (type === lastAppliedType) return; // skip if same
     lastAppliedType = type;
 
