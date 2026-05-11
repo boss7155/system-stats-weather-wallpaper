@@ -2,6 +2,16 @@
 // SYSTEM STATS + WEATHER WALLPAPER
 // =====================================================
 
+// Global error handler — prevents uncaught exceptions from crashing WebView2
+window.onerror = function(msg, url, line, col, error) {
+    console.log('[ERROR]', msg, 'at', line + ':' + col);
+    return true; // suppress error, don't crash
+};
+window.addEventListener('unhandledrejection', function(e) {
+    console.log('[PROMISE ERROR]', e.reason);
+    e.preventDefault();
+});
+
 // ===== КОНФИГУРАЦИЯ =====
 var CONFIG = {
     weatherApiKey: 'YOUR_OPENWEATHERMAP_API_KEY', // Get free key at https://openweathermap.org/api
@@ -320,27 +330,31 @@ function initChart() {
 function livelySystemInformation(data) {
     livelyConnected = true;
 
-    var obj = JSON.parse(data);
+    var obj = null;
+    try { obj = JSON.parse(data); } catch (e) { return; }
+    if (!obj) return;
 
     // Hardware names
     cpuName = obj.NameCpu || "CPU";
     gpuName = obj.NameGpu || "GPU";
     netCardName = obj.NameNetCard || "Network";
-    memoryName = "RAM (" + (obj.TotalRam / 1024).toFixed(0) + " GB)";
+    memoryName = "RAM (" + ((obj.TotalRam || 1024) / 1024).toFixed(0) + " GB)";
 
     // Chart data
     cpuCounter = obj.CurrentCpu || 0;
     gpuCounter = obj.CurrentGpu3D || 0;
-    netDownCounter = (obj.CurrentNetDown * 8) / (1024 * 1024);
-    netUpCounter = (obj.CurrentNetUp * 8) / (1024 * 1024);
+    netDownCounter = ((obj.CurrentNetDown || 0) * 8) / (1024 * 1024);
+    netUpCounter = ((obj.CurrentNetUp || 0) * 8) / (1024 * 1024);
     memFree = obj.CurrentRamAvail || 0;
     memTotal = obj.TotalRam || 1;
 
     // Update chart titles with real hardware names
-    if (cpuChart) cpuChart.options.title.text = cpuName;
-    if (gpuChart) gpuChart.options.title.text = gpuName;
-    if (netChart) netChart.options.title.text = netCardName;
-    if (ramChart) ramChart.options.title.text = memoryName;
+    try {
+        if (cpuChart) cpuChart.options.title.text = cpuName;
+        if (gpuChart) gpuChart.options.title.text = gpuName;
+        if (netChart) netChart.options.title.text = netCardName;
+        if (ramChart) ramChart.options.title.text = memoryName;
+    } catch (e) {}
 }
 
 // =====================================================
@@ -676,8 +690,13 @@ function doChangeBackground(type, bgUrl, overlayColor) {
 
 // Check time mode every 30 seconds
 setInterval(checkTimeMode, 30000);
-// Initial check
+// Initial check — also apply initial background based on time of day
 checkTimeMode();
+// Force initial background application (CSS default is sunny.jpg)
+if (!currentBgType) {
+    currentBgType = 'clear'; // default until weather API responds
+}
+applyBackground();
 
 
 // =====================================================
@@ -956,6 +975,7 @@ function livelyCurrentTrack(data) {
 // audioArray: frequency values from Lively audio capture
 function livelyAudioListener(audioArray) {
     if (!vizCtx || !musicWidgetEl) return;
+    if (!audioArray || !audioArray.length) return;
 
     // Audio is playing — show widget
     audioIsActive = true;
