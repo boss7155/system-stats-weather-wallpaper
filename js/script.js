@@ -504,6 +504,8 @@ function fetchWeather() {
             }
 
             renderWeatherIcon(weatherType);
+            // Reset background cache so weather change always applies
+            lastAppliedType = '';
             changeBackground(weatherType);
         })
         .catch(function (err) {
@@ -577,7 +579,8 @@ function checkTimeMode() {
     eveningModeActive = (period === 'evening');
 
     if (nightModeActive !== wasNight || eveningModeActive !== wasEvening) {
-        // Time mode changed — force background update
+        // Time mode changed — force background update by resetting cache
+        lastAppliedType = '';  // Force doChangeBackground to apply new background
         applyBackground();
     }
 }
