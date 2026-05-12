@@ -796,10 +796,15 @@ function changeBackground(weatherType) {
 
 // Core background crossfade logic
 var lastAppliedType = '';
+var bgTransitionTimer = null; // Track crossfade timers to prevent race conditions
 function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
     console.log('[BG] doChangeBackground:', type, '→', bgUrl, 'lastApplied:', lastAppliedType, 'nightBg:', isNightBg);
     if (type === lastAppliedType) return; // skip if same
     lastAppliedType = type;
+
+    // Update debug info
+    var dbg = document.getElementById('debugInfo');
+    if (dbg) dbg.textContent = 'v:13a | base:' + baseWeatherType + ' eff:' + currentBgType + ' bg:' + bgUrl.split('/').pop() + ' time:' + (nightModeActive ? 'night' : eveningModeActive ? 'evening' : 'day');
 
     // Toggle night-bg class on body — removes blur for night backgrounds
     if (isNightBg) {
@@ -812,6 +817,12 @@ function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
     var bgCurrent = document.getElementById('bgCurrent');
     var bgNext = document.getElementById('bgNext');
 
+    // Cancel any pending crossfade from previous call
+    if (bgTransitionTimer) {
+        clearTimeout(bgTransitionTimer);
+        bgTransitionTimer = null;
+    }
+
     // Preload image, then crossfade
     var img = new Image();
     img.onload = function () {
@@ -819,10 +830,17 @@ function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
         bgNext.style.opacity = '1';
 
         // After transition, move next to current
-        setTimeout(function () {
+        bgTransitionTimer = setTimeout(function () {
             bgCurrent.style.backgroundImage = 'url(' + bgUrl + ')';
             bgNext.style.opacity = '0';
+            bgTransitionTimer = null;
         }, 1500);
+    };
+    img.onerror = function () {
+        // If image fails to load, apply directly to current layer
+        console.log('[BG] Image load FAILED for:', bgUrl, '— applying directly');
+        bgCurrent.style.backgroundImage = 'url(' + bgUrl + ')';
+        bgNext.style.opacity = '0';
     };
     img.src = bgUrl;
 
@@ -832,12 +850,14 @@ function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
 
 // Check time mode every 30 seconds
 setInterval(checkTimeMode, 30000);
-// Initial check — also apply initial background based on time of day
+// Initial setup: determine time mode first, then apply background
 checkTimeMode();
-// Force initial background application (CSS default is sunny.jpg)
+// Ensure baseWeatherType has a default value
 if (!baseWeatherType) {
     baseWeatherType = 'clear'; // default until weather API responds
 }
+// Force initial background application — reset cache to ensure it applies
+lastAppliedType = '';
 applyBackground();
 
 
