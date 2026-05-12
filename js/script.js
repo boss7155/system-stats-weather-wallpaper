@@ -692,8 +692,14 @@ function checkTimeMode() {
 // This ensures that when time mode changes (day→evening→night), the background updates
 // immediately without waiting for the next weather API call.
 function applyBackground() {
+    // ===== Normalize base type: strip -night/-evening suffixes =====
+    // mapWeatherIcon() returns variants like 'clear-night' based on API icon,
+    // but time-mode conversion must use the BASE type. Strip suffixes so that
+    // the CURRENT time mode (not the API icon) determines the effective type.
+    var base = baseWeatherType.replace(/-night$/, '').replace(/-evening$/, '');
+
     // ===== Derive effective type from base weather + current time mode =====
-    var effectiveType = baseWeatherType;
+    var effectiveType = base;
     if (nightModeActive) {
         if (effectiveType === 'clear') effectiveType = 'clear-night';
         else if (effectiveType === 'partly-cloudy') effectiveType = 'partly-cloudy-night';
