@@ -662,11 +662,11 @@ function getTimePeriod() {
     var minutes = localDate.getMinutes();
     var totalMin = hours * 60 + minutes;
 
-    // Night: 22:30 (1350) – 6:00 (360)
-    if (totalMin >= 1350 || totalMin < 360) return 'night';
-    // Evening: 19:30 (1170) – 22:30 (1350)
-    if (totalMin >= 1170 && totalMin < 1350) return 'evening';
-    // Day: 6:00 – 19:30
+    // Night: 23:00 (1380) – 7:00 (420)
+    if (totalMin >= 1380 || totalMin < 420) return 'night';
+    // Evening: 20:00 (1200) – 23:00 (1380)
+    if (totalMin >= 1200 && totalMin < 1380) return 'evening';
+    // Day: 7:00 – 20:00
     return 'day';
 }
 
@@ -805,10 +805,6 @@ function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
     console.log('[BG] doChangeBackground:', type, '→', bgUrl, 'lastApplied:', lastAppliedType, 'nightBg:', isNightBg);
     if (type === lastAppliedType) return; // skip if same
     lastAppliedType = type;
-
-    // Update debug info
-    var dbg = document.getElementById('debugInfo');
-    if (dbg) dbg.textContent = 'v:13a | base:' + baseWeatherType + ' eff:' + currentBgType + ' bg:' + bgUrl.split('/').pop() + ' time:' + (nightModeActive ? 'night' : eveningModeActive ? 'evening' : 'day');
 
     // Toggle night-bg class on body — removes blur for night backgrounds
     if (isNightBg) {
