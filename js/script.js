@@ -712,20 +712,24 @@ function applyBackground() {
     currentBgType = effectiveType;
 
     // ===== Map effective type to background image =====
+    // Night/Evening: use night.jpg / evening.jpg for clear AND cloudy weather
+    // (just clouds at night = night sky, clouds at evening = evening sky)
+    // Only rain/storm/snow keep their specific textures at night/evening
+    // (so you can SEE the rain/snow, not just dark sky)
     var bgMap = {
         'clear': 'textures/sunny.jpg',
         'clear-night': 'textures/night.jpg',
         'clear-evening': 'textures/evening.jpg',
         'partly-cloudy': 'textures/partly-cloudy.jpg',
-        'partly-cloudy-night': 'textures/partly-cloudy.jpg',
+        'partly-cloudy-night': 'textures/night.jpg',
         'partly-cloudy-evening': 'textures/evening.jpg',
         'cloudy': 'textures/overcast.jpg',
-        'cloudy-night': 'textures/overcast.jpg',
-        'cloudy-evening': 'textures/overcast.jpg',
+        'cloudy-night': 'textures/night.jpg',
+        'cloudy-evening': 'textures/evening.jpg',
         'rain': 'textures/rain.jpg',
         'snow': 'textures/snow.jpg',
         'storm': 'textures/storm.jpg',
-        'mist': 'textures/overcast.jpg',
+        'mist': 'textures/night.jpg',
         'dust': 'textures/overcast.jpg',
     };
     var bgUrl = bgMap[currentBgType] || bgMap['clear'];
