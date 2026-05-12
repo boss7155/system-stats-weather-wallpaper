@@ -512,6 +512,75 @@ function fetchWeather() {
                 }
             }
 
+            // === PRECIPITATION OVERRIDE ===
+            // API often reports "clouds" (802) even when it's actually raining.
+            // Check rain/snow precipitation data — if there's actual rainfall, force rain.
+            if (data.rain) {
+                var rainVol = (data.rain['1h'] || 0) + (data.rain['3h'] || 0);
+                if (rainVol > 0 && getWeatherPriority(weatherType) < getWeatherPriority('rain')) {
+                    console.log('[Weather] PRECIPITATION OVERRIDE: rain volume', rainVol, 'mm, forcing rain icon');
+                    weatherType = 'rain';
+                }
+            }
+            if (data.snow) {
+                var snowVol = (data.snow['1h'] || 0) + (data.snow['3h'] || 0);
+                if (snowVol > 0 && getWeatherPriority(weatherType) < getWeatherPriority('snow')) {
+                    console.log('[Weather] PRECIPITATION OVERRIDE: snow volume', snowVol, 'mm, forcing snow icon');
+                    weatherType = 'snow';
+                }
+            }
+
+            // === DESCRIPTION KEYWORD OVERRIDE ===
+            // Sometimes API doesn't include rain in weather[] but description says "дождь"
+            var descLower = (data.weather[0].description || '').toLowerCase();
+            var allDescs = '';
+            for (var i = 0; i < data.weather.length; i++) {
+                allDescs += (data.weather[i].description || '').toLowerCase() + ' ';
+            }
+            // Rain keywords in Russian
+            if (allDescs.match(/дождь|ливень|дожд|морось|гроза|проливной/)) {
+                if (allDescs.match(/гроза/)) {
+                    if (getWeatherPriority(weatherType) < getWeatherPriority('storm')) {
+                        console.log('[Weather] KEYWORD OVERRIDE: description contains "гроза", forcing storm');
+                        weatherType = 'storm';
+                    }
+                } else if (getWeatherPriority(weatherType) < getWeatherPriority('rain')) {
+                    console.log('[Weather] KEYWORD OVERRIDE: description contains rain keyword, forcing rain');
+                    weatherType = 'rain';
+                }
+            }
+            // Snow keywords
+            if (allDescs.match(/снег|снегопад|метель|крупа|хлопья/)) {
+                if (getWeatherPriority(weatherType) < getWeatherPriority('snow')) {
+                    console.log('[Weather] KEYWORD OVERRIDE: description contains snow keyword, forcing snow');
+                    weatherType = 'snow';
+                }
+            }
+
+            // === API ICON CODE OVERRIDE ===
+            // OpenWeatherMap icon codes: 09=drizzle, 10=rain, 11=storm, 13=snow
+            // If ANY weather item has a rain/storm/snow icon code, force that type
+            // This catches cases where API returns id 802 but icon says "10d" (rain)
+            for (var i = 0; i < data.weather.length; i++) {
+                var icon = data.weather[i].icon || '';
+                if (icon.match(/^09/) && getWeatherPriority(weatherType) < getWeatherPriority('rain')) {
+                    console.log('[Weather] ICON OVERRIDE: icon', icon, '→ rain');
+                    weatherType = 'rain';
+                }
+                if (icon.match(/^10/) && getWeatherPriority(weatherType) < getWeatherPriority('rain')) {
+                    console.log('[Weather] ICON OVERRIDE: icon', icon, '→ rain');
+                    weatherType = 'rain';
+                }
+                if (icon.match(/^11/) && getWeatherPriority(weatherType) < getWeatherPriority('storm')) {
+                    console.log('[Weather] ICON OVERRIDE: icon', icon, '→ storm');
+                    weatherType = 'storm';
+                }
+                if (icon.match(/^13/) && getWeatherPriority(weatherType) < getWeatherPriority('snow')) {
+                    console.log('[Weather] ICON OVERRIDE: icon', icon, '→ snow');
+                    weatherType = 'snow';
+                }
+            }
+
             // Force night icon when it's nighttime — don't show sun at 1am
             if (nightModeActive && weatherType === 'clear') {
                 weatherType = 'clear-night';
@@ -524,6 +593,8 @@ function fetchWeather() {
 
             // Debug: log what API returned and what we computed
             console.log('[Weather] API weather:', JSON.stringify(data.weather), 
+                'rain:', JSON.stringify(data.rain || 'none'),
+                'snow:', JSON.stringify(data.snow || 'none'),
                 '→ weatherType:', weatherType, 
                 '→ currentBgType:', currentBgType,
                 'night:', nightModeActive, 'evening:', eveningModeActive);
