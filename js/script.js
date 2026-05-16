@@ -846,6 +846,9 @@ function doChangeBackground(type, bgUrl, overlayColor, isNightBg) {
 
     var overlay = document.getElementById('bgOverlay');
     overlay.style.background = overlayColor;
+
+    // Update fullscreen weather effects (rain, snow, lightning)
+    updateWeatherFx();
 }
 
 // Check time mode every 30 seconds
@@ -1044,6 +1047,77 @@ function renderDustIcon() {
         windLines += '<div class="dust-wind" style="top:' + w.top + 'px;left:' + w.left + 'px;width:' + w.width + 'px;animation-delay:' + w.delay + 's"></div>';
     }
     return '<div class="weather-icon-dust">' + windLines + particles + '</div>';
+}
+
+
+// =====================================================
+// FULLSCREEN WEATHER EFFECTS — rain, snow, lightning
+// =====================================================
+
+var currentFxType = ''; // Track which effect is active to avoid redundant updates
+
+function updateWeatherFx() {
+    var fx = document.getElementById('weatherFx');
+    if (!fx) return;
+
+    // Determine which effect to show based on currentBgType
+    var fxType = 'none';
+    var base = currentBgType.replace(/-night$/, '').replace(/-evening$/, '');
+    if (base === 'rain') fxType = 'rain';
+    else if (base === 'storm') fxType = 'storm';
+    else if (base === 'snow') fxType = 'snow';
+
+    // Skip if same effect already active
+    if (fxType === currentFxType) return;
+    currentFxType = fxType;
+
+    // Clear previous effects
+    fx.innerHTML = '';
+
+    if (fxType === 'rain') {
+        // Generate 60 rain drops spread across the screen
+        var html = '';
+        for (var i = 0; i < 60; i++) {
+            var left = Math.random() * 100;
+            var height = 15 + Math.random() * 25; // 15-40px
+            var duration = 0.6 + Math.random() * 0.5; // 0.6-1.1s
+            var delay = Math.random() * 2;
+            var opacity = 0.3 + Math.random() * 0.4;
+            html += '<div class="fx-raindrop" style="left:' + left + '%;height:' + height + 'px;animation-duration:' + duration + 's;animation-delay:' + delay + 's;opacity:' + opacity + '"></div>';
+        }
+        fx.innerHTML = html;
+    }
+    else if (fxType === 'storm') {
+        // Storm = rain + lightning
+        var html = '';
+        // More intense rain than regular rain
+        for (var i = 0; i < 80; i++) {
+            var left = Math.random() * 100;
+            var height = 20 + Math.random() * 30; // 20-50px — longer drops
+            var duration = 0.4 + Math.random() * 0.4; // 0.4-0.8s — faster
+            var delay = Math.random() * 1.5;
+            var opacity = 0.3 + Math.random() * 0.5;
+            html += '<div class="fx-raindrop" style="left:' + left + '%;height:' + height + 'px;animation-duration:' + duration + 's;animation-delay:' + delay + 's;opacity:' + opacity + '"></div>';
+        }
+        // Two lightning layers with different timing for realistic double-flash
+        html += '<div class="fx-lightning"></div>';
+        html += '<div class="fx-lightning2"></div>';
+        fx.innerHTML = html;
+    }
+    else if (fxType === 'snow') {
+        // Generate 50 snowflakes
+        var html = '';
+        for (var i = 0; i < 50; i++) {
+            var left = Math.random() * 100;
+            var size = 3 + Math.random() * 6; // 3-9px
+            var duration = 4 + Math.random() * 6; // 4-10s — slow drift
+            var delay = Math.random() * 5;
+            var opacity = 0.4 + Math.random() * 0.4;
+            html += '<div class="fx-snowflake" style="left:' + left + '%;width:' + size + 'px;height:' + size + 'px;animation-duration:' + duration + 's;animation-delay:' + delay + 's;opacity:' + opacity + '"></div>';
+        }
+        fx.innerHTML = html;
+    }
+    // else: no effects (clear, cloudy, etc.)
 }
 
 

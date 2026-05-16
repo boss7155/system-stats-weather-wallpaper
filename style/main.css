@@ -481,3 +481,82 @@ canvas {
         0%, 100% { opacity: 0.5; width: 60%; }
         50% { opacity: 1; width: 80%; }
 }
+
+/* ===== FULLSCREEN WEATHER EFFECTS — rain, snow, lightning ===== */
+.weather-fx {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none;
+        overflow: hidden;
+}
+
+/* --- Rain drops --- */
+.fx-raindrop {
+        position: absolute;
+        top: -40px;
+        width: 2px;
+        background: linear-gradient(to bottom, transparent, rgba(150, 190, 255, 0.5), rgba(100, 160, 255, 0.7));
+        border-radius: 0 0 2px 2px;
+        animation: fxDropFall linear infinite;
+}
+@keyframes fxDropFall {
+        0% { transform: translateY(0); opacity: 0; }
+        5% { opacity: 0.7; }
+        95% { opacity: 0.5; }
+        100% { transform: translateY(110vh); opacity: 0; }
+}
+
+/* --- Snow particles --- */
+.fx-snowflake {
+        position: absolute;
+        top: -20px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(220,230,255,0.4));
+        box-shadow: 0 0 4px rgba(255,255,255,0.3);
+        animation: fxSnowFall linear infinite;
+}
+@keyframes fxSnowFall {
+        0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
+        5% { opacity: 0.8; }
+        50% { transform: translateY(55vh) translateX(30px) rotate(180deg); opacity: 0.6; }
+        95% { opacity: 0.4; }
+        100% { transform: translateY(110vh) translateX(-15px) rotate(360deg); opacity: 0; }
+}
+
+/* --- Lightning flash --- */
+.fx-lightning {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(200, 210, 255, 0);
+        pointer-events: none;
+        animation: fxLightning 8s ease-in-out infinite;
+}
+@keyframes fxLightning {
+        0%, 87%, 89%, 91%, 100% { background: rgba(200, 210, 255, 0); }
+        88% { background: rgba(200, 210, 255, 0.25); }
+        90% { background: rgba(200, 210, 255, 0.35); }
+}
+
+/* Second lightning layer — offset timing for double-flash effect */
+.fx-lightning2 {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(180, 190, 255, 0);
+        pointer-events: none;
+        animation: fxLightning2 12s ease-in-out infinite;
+}
+@keyframes fxLightning2 {
+        0%, 92%, 94%, 96%, 100% { background: rgba(180, 190, 255, 0); }
+        93% { background: rgba(180, 190, 255, 0.2); }
+        95% { background: rgba(180, 190, 255, 0.3); }
+}
