@@ -614,8 +614,12 @@ function fetchWeather() {
 // storm(8) > rain(7) > snow(6) > dust(5) > mist(4) > cloudy(3) > partly-cloudy(2) > clear(1)
 function getWeatherPriority(type) {
     var priorities = {
-        'storm': 8, 'rain': 7, 'snow': 6, 'dust': 5,
-        'mist': 4, 'cloudy': 3, 'cloudy-night': 3, 'cloudy-evening': 3,
+        'storm': 8, 'storm-night': 8, 'storm-evening': 8,
+        'rain': 7, 'rain-night': 7, 'rain-evening': 7,
+        'snow': 6, 'snow-night': 6, 'snow-evening': 6,
+        'dust': 5,
+        'mist': 4, 'mist-night': 4, 'mist-evening': 4,
+        'cloudy': 3, 'cloudy-night': 3, 'cloudy-evening': 3,
         'partly-cloudy': 2, 'partly-cloudy-night': 2, 'partly-cloudy-evening': 2,
         'clear': 1, 'clear-night': 1, 'clear-evening': 1
     };
@@ -699,23 +703,35 @@ function applyBackground() {
     var base = baseWeatherType.replace(/-night$/, '').replace(/-evening$/, '');
 
     // ===== Derive effective type from base weather + current time mode =====
+    // At night/evening: rain, storm, snow also use night/evening background
+    // The weather effects (rain drops, snowflakes, lightning) show on top
     var effectiveType = base;
     if (nightModeActive) {
+        // Night: ALL weather types use night sky background
+        // Weather effects (rain drops, snowflakes, lightning) overlay on top
         if (effectiveType === 'clear') effectiveType = 'clear-night';
         else if (effectiveType === 'partly-cloudy') effectiveType = 'partly-cloudy-night';
         else if (effectiveType === 'cloudy') effectiveType = 'cloudy-night';
+        else if (effectiveType === 'rain') effectiveType = 'rain-night';
+        else if (effectiveType === 'storm') effectiveType = 'storm-night';
+        else if (effectiveType === 'snow') effectiveType = 'snow-night';
+        else if (effectiveType === 'mist') effectiveType = 'mist-night';
     } else if (eveningModeActive) {
+        // Evening: ALL weather types use evening background
         if (effectiveType === 'clear') effectiveType = 'clear-evening';
         else if (effectiveType === 'partly-cloudy') effectiveType = 'partly-cloudy-evening';
         else if (effectiveType === 'cloudy') effectiveType = 'cloudy-evening';
+        else if (effectiveType === 'rain') effectiveType = 'rain-evening';
+        else if (effectiveType === 'storm') effectiveType = 'storm-evening';
+        else if (effectiveType === 'snow') effectiveType = 'snow-evening';
+        else if (effectiveType === 'mist') effectiveType = 'mist-evening';
     }
     currentBgType = effectiveType;
 
     // ===== Map effective type to background image =====
-    // Night/Evening: use night.jpg / evening.jpg for clear AND cloudy weather
-    // (just clouds at night = night sky, clouds at evening = evening sky)
-    // Only rain/storm/snow keep their specific textures at night/evening
-    // (so you can SEE the rain/snow, not just dark sky)
+    // Day: weather-specific textures (rain.jpg, snow.jpg, storm.jpg)
+    // Night/Evening: night.jpg / evening.jpg for ALL weather types
+    // Weather effects (rain drops, snowflakes, lightning) show on top
     var bgMap = {
         'clear': 'textures/sunny.jpg',
         'clear-night': 'textures/night.jpg',
@@ -727,9 +743,17 @@ function applyBackground() {
         'cloudy-night': 'textures/night.jpg',
         'cloudy-evening': 'textures/evening.jpg',
         'rain': 'textures/rain.jpg',
+        'rain-night': 'textures/night.jpg',
+        'rain-evening': 'textures/evening.jpg',
         'snow': 'textures/snow.jpg',
+        'snow-night': 'textures/night.jpg',
+        'snow-evening': 'textures/evening.jpg',
         'storm': 'textures/storm.jpg',
-        'mist': 'textures/night.jpg',
+        'storm-night': 'textures/night.jpg',
+        'storm-evening': 'textures/evening.jpg',
+        'mist': 'textures/overcast.jpg',
+        'mist-night': 'textures/night.jpg',
+        'mist-evening': 'textures/evening.jpg',
         'dust': 'textures/overcast.jpg',
     };
     var bgUrl = bgMap[currentBgType] || bgMap['clear'];
@@ -738,12 +762,12 @@ function applyBackground() {
     var overlayColor;
 
     if (nightModeActive) {
-        // Night: dark overlay on top of weather background
-        if (currentBgType === 'rain' || currentBgType === 'storm') {
-            overlayColor = 'rgba(0,0,20,0.4)';
-        } else if (currentBgType === 'snow') {
-            overlayColor = 'rgba(0,5,25,0.45)';
-        } else if (currentBgType === 'cloudy-night' || currentBgType === 'mist' || currentBgType === 'dust') {
+        // Night: dark overlay — all types use night.jpg, overlay adjusts per weather
+        if (currentBgType === 'rain-night' || currentBgType === 'storm-night') {
+            overlayColor = 'rgba(0,0,20,0.35)'; // slightly lighter — rain effects add darkness
+        } else if (currentBgType === 'snow-night') {
+            overlayColor = 'rgba(0,5,25,0.4)';
+        } else if (currentBgType === 'cloudy-night' || currentBgType === 'mist-night') {
             overlayColor = 'rgba(0,0,15,0.5)';
         } else if (currentBgType === 'partly-cloudy-night') {
             overlayColor = 'rgba(0,0,20,0.5)';
@@ -752,17 +776,17 @@ function applyBackground() {
             overlayColor = 'rgba(0,0,20,0.45)';
         }
     } else if (eveningModeActive) {
-        // Evening: warm overlay on top of weather background
-        if (currentBgType === 'rain' || currentBgType === 'storm') {
-            overlayColor = 'rgba(10,5,20,0.35)';
-        } else if (currentBgType === 'snow') {
-            overlayColor = 'rgba(10,5,20,0.3)';
-        } else if (currentBgType === 'cloudy-evening' || currentBgType === 'mist' || currentBgType === 'dust') {
+        // Evening: warm overlay — all types use evening.jpg
+        if (currentBgType === 'rain-evening' || currentBgType === 'storm-evening') {
+            overlayColor = 'rgba(10,5,20,0.25)'; // lighter — rain effects + evening.jpg already dark
+        } else if (currentBgType === 'snow-evening') {
+            overlayColor = 'rgba(10,5,20,0.2)';
+        } else if (currentBgType === 'cloudy-evening' || currentBgType === 'mist-evening') {
             overlayColor = 'rgba(10,5,15,0.35)';
         } else if (currentBgType === 'partly-cloudy-evening') {
             overlayColor = 'rgba(10,5,20,0.25)';
         } else {
-            // clear-evening (evening.jpg is already dark/warm, lighter overlay)
+            // clear-evening
             overlayColor = 'rgba(10,5,20,0.2)';
         }
     } else {
@@ -781,14 +805,11 @@ function applyBackground() {
     }
 
     // Build a composite type that encodes both weather and time mode
-    // This ensures doChangeBackground sees different types for "rain at night" vs "rain at day"
     var compositeType = currentBgType;
-    if (nightModeActive) compositeType += ':night';
-    else if (eveningModeActive) compositeType += ':evening';
 
-    // No blur only for night backgrounds (clear-night, partly-cloudy-night, cloudy-night)
-    // Evening backgrounds keep blur (evening.jpg looks better with subtle blur)
-    var isNightBg = (currentBgType === 'clear-night' || currentBgType === 'partly-cloudy-night' || currentBgType === 'cloudy-night') && nightModeActive;
+    // No blur for ALL night backgrounds (rain at night = night.jpg without blur)
+    // Evening backgrounds keep blur
+    var isNightBg = nightModeActive;
 
     doChangeBackground(compositeType, bgUrl, overlayColor, isNightBg);
 }
@@ -871,22 +892,25 @@ applyBackground();
 function renderWeatherIcon(type) {
     var wrap = document.getElementById('weatherIconWrap');
     if (!wrap) return;
-    switch (type) {
+    // Normalize: rain-night → rain icon, storm-evening → storm icon, etc.
+    var baseType = type.replace(/-night$/, '').replace(/-evening$/, '');
+    switch (baseType) {
         case 'clear': wrap.innerHTML = renderSunnyIcon(); break;
-        case 'clear-night': wrap.innerHTML = renderNightIcon(); break;
-        case 'clear-evening': wrap.innerHTML = renderNightIcon(); break; // Moon at evening too
         case 'partly-cloudy': wrap.innerHTML = renderPartlyCloudyIcon(); break;
-        case 'partly-cloudy-night': wrap.innerHTML = renderPartlyCloudyNightIcon(); break;
-        case 'partly-cloudy-evening': wrap.innerHTML = renderPartlyCloudyNightIcon(); break;
         case 'cloudy': wrap.innerHTML = renderCloudyIcon(); break;
-        case 'cloudy-night': wrap.innerHTML = renderCloudyNightIcon(); break;
-        case 'cloudy-evening': wrap.innerHTML = renderCloudyNightIcon(); break;
         case 'rain': wrap.innerHTML = renderRainIcon(); break;
         case 'snow': wrap.innerHTML = renderSnowIcon(); break;
         case 'storm': wrap.innerHTML = renderStormIcon(); break;
         case 'mist': wrap.innerHTML = renderMistIcon(); break;
         case 'dust': wrap.innerHTML = renderDustIcon(); break;
         default: wrap.innerHTML = renderSunnyIcon();
+    }
+    // Night/evening: override with night icons for clear/cloudy types
+    if (type.includes('night') || type.includes('evening')) {
+        if (baseType === 'clear') wrap.innerHTML = renderNightIcon();
+        else if (baseType === 'partly-cloudy') wrap.innerHTML = renderPartlyCloudyNightIcon();
+        else if (baseType === 'cloudy') wrap.innerHTML = renderCloudyNightIcon();
+        // rain/storm/snow keep their icons (rain is rain, night or day)
     }
 }
 
